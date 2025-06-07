@@ -48,18 +48,5 @@ void PluginWindowBase::OnClose()
 
 void PluginWindowBase::Render()
 {
-	if (!ImGui::Begin(menuTitle_.c_str(), &isWindowOpen_, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
-	{
-		ImGui::End();
-		return;
-	}
-
 	this->RenderWindow();
-
-	ImGui::End();
-
-	if (!isWindowOpen_)
-	{
-		_globalCvarManager->executeCommand("togglemenu " + GetMenuName());
-	}
 }

@@ -18,6 +18,7 @@ public: // Overrides
 	void onUnload() override;
 	void RenderSettings() override;
 	void RenderWindow() override;
+	void Render() override;
 public:
 	void RenderCanvas(CanvasWrapper& canvas);
 

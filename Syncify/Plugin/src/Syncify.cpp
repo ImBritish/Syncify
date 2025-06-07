@@ -54,6 +54,26 @@ void Syncify::RenderSettings()
 				}
 			);
 		}
+
+		ImGui::Checkbox("Hide When 'Not Playing'", &this->HideWhenNotPlaying);
+	}
+}
+
+void Syncify::Render()
+{
+	if (!ImGui::Begin(menuTitle_.c_str(), &isWindowOpen_, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
+	{
+		ImGui::End();
+		return;
+	}
+
+	this->RenderWindow();
+
+	ImGui::End();
+
+	if (!isWindowOpen_)
+	{
+		_globalCvarManager->executeCommand("togglemenu " + GetMenuName());
 	}
 }
 
@@ -123,11 +143,49 @@ void Syncify::RenderCanvas(CanvasWrapper& canvas)
 		lastTime = now;
 	}
 
-	if (isWindowOpen_ && !gameWrapper->IsInGame())
-		cvarManager->executeCommand("togglemenu " + GetMenuName());
+	if (gameWrapper->IsInGame())
+	{
 
-	if (!isWindowOpen_ && DisplayOverlay && gameWrapper->IsInGame())
-		cvarManager->executeCommand("togglemenu " + GetMenuName());
+		bool NotPlaying = *this->m_SpotifyApi->GetTitle() == "Not Playing" && *this->m_SpotifyApi->GetArtist() == "Not Playing";
+
+		if (isWindowOpen_)
+		{
+			if (this->HideWhenNotPlaying)
+			{
+				if (NotPlaying)
+				{
+					cvarManager->executeCommand("togglemenu " + GetMenuName());
+				}
+			}
+		}
+		else
+		{
+			if (DisplayOverlay)
+			{
+				if (NotPlaying && this->HideWhenNotPlaying)
+				{
+					return;
+				}
+				else 
+				{
+					cvarManager->executeCommand("togglemenu " + GetMenuName());
+				}
+			}
+		}
+
+		//if (isWindowOpen_ && *this->m_SpotifyApi->GetTitle() == "Not Playing" && *this->m_SpotifyApi->GetArtist() == "Not Playing" && this->HideWhenNotPlaying)
+		//{
+		//	cvarManager->executeCommand("togglemenu " + GetMenuName());
+		//}
+
+		//if (!isWindowOpen_ && DisplayOverlay && gameWrapper->IsInGame())
+		//	cvarManager->executeCommand("togglemenu " + GetMenuName());
+	}
+	else
+	{
+		if (isWindowOpen_)
+			cvarManager->executeCommand("togglemenu " + GetMenuName());
+	}
 }
 
 void Syncify::SaveData()
@@ -145,6 +203,11 @@ void Syncify::SaveData()
 	saveData["ClientSecret"] = *this->m_SpotifyApi->GetClientSecret();
 	saveData["AccessToken"] = *this->m_SpotifyApi->GetAccessToken();
 	saveData["RefreshToken"] = *this->m_SpotifyApi->GetRefreshToken();
+
+	nlohmann::json options = saveData["Options"];
+
+	options["ShowOverlay"] = this->DisplayOverlay;
+	options["HideWhenNotPlaying"] = this->HideWhenNotPlaying;
 
 	std::ofstream outFile(latestSavePath);
 
@@ -190,6 +253,17 @@ void Syncify::LoadData()
 
 	if (data.contains("RefreshToken"))
 		this->m_SpotifyApi->SetRefreshToken(data["RefreshToken"]);
+
+	if (data.contains("Options"))
+	{
+		nlohmann::json options = data["Options"];
+
+		if (options.contains("ShowOverlay"))
+			this->DisplayOverlay = options["ShowOverlay"];
+
+		if (options.contains("HideWhenNotPlaying"))
+			this->HideWhenNotPlaying = options["HideWhenNotPlaying"];
+	}
 
 	inFile.close();
 	Log::Info("Loaded Latest Save.");
