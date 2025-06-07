@@ -20,6 +20,11 @@ public: // Overrides
 	void RenderWindow() override;
 public:
 	void RenderCanvas(CanvasWrapper& canvas);
+
+	void SaveData();
+	void LoadData();
 private:
 	std::shared_ptr<SpotifyAPI> m_SpotifyApi;
+private:
+	bool DisplayOverlay = true, HideWhenNotPlaying = true;
 };

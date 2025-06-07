@@ -28,12 +28,12 @@ void PluginWindowBase::SetImGuiContext(uintptr_t ctx)
 
 bool PluginWindowBase::ShouldBlockInput()
 {
-	return ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
+	return false;
 }
 
 bool PluginWindowBase::IsActiveOverlay()
 {
-	return true;
+	return false;
 }
 
 void PluginWindowBase::OnOpen()
@@ -48,7 +48,7 @@ void PluginWindowBase::OnClose()
 
 void PluginWindowBase::Render()
 {
-	if (!ImGui::Begin(menuTitle_.c_str(), &isWindowOpen_, ImGuiWindowFlags_None))
+	if (!ImGui::Begin(menuTitle_.c_str(), &isWindowOpen_, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
 	{
 		ImGui::End();
 		return;

@@ -11,26 +11,38 @@
 
 using namespace httplib;
 
-struct SongMeta 
-{
-
-};
-
 class SpotifyAPI
 {
 public:
 	void Authenticate();
-	void GetCurrentPlaying();
+	void FetchMediaData();
 	void ForceServerClose();
+	void RefreshAccessToken(std::function<void()> onRefreshed);
 
 	void SetClientId(const std::string& clientId);
 	void SetClientSecret(const std::string& secret);
+	void SetAccessToken(const std::string& accessToken);
+	void SetRefreshToken(const std::string& refreshToken);
 public:
 	bool IsAuthenticated() { return this->Authenticated; }
+
+	std::string* GetTitle() { return &this->Title; }
+	std::string* GetArtist() { return &this->Artist; }
+
+	bool IsPlaying() { return this->CurrentlyPlaying; }
+	bool IsExplicit() { return this->Explicit; }
+	bool IsLocal() { return this->Local; }
+
+	long GetProgress() { return this->Progress; }
+	long GetDuration() { return this->Duration; }
+	long GetTimestamp() { return this->Timestamp; }
+
+	bool IsSongEnded();
 
 	std::string* GetClientId() { return &this->ClientId; }
 	std::string* GetClientSecret() { return &this->ClientSecret; }
 	std::string* GetAccessToken() { return &this->AccessToken; }
+	std::string* GetRefreshToken() { return &this->RefreshToken; }
 private:
 	void ExchangeCode(const std::string& code);
 	void RunAuthServer(std::string& code);
@@ -48,4 +60,10 @@ private:
 	std::mutex m_Mutex;
 	std::condition_variable m_CondVar;
 	bool m_CodeReceived = false;
+private:
+	bool CurrentlyPlaying = false, Explicit = false, Local = false;
+	std::string Title = "Not Playing", Artist = "Not Playing";
+	long Progress = 0, Duration = 0, Timestamp = 0;
+private:
+	std::chrono::steady_clock::time_point TokenExpiry;
 };

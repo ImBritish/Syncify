@@ -4,6 +4,8 @@
 
 #include "SpotifyAPI.h"
 
+#include <functional>
+
 void SpotifyAPI::Authenticate()
 {
 	std::thread([this]() 
@@ -23,29 +25,99 @@ void SpotifyAPI::Authenticate()
 	).detach();
 }
 
-void SpotifyAPI::GetCurrentPlaying()
+void SpotifyAPI::FetchMediaData()
 {
-	if (this->AccessToken.empty()) 
+	if (this->AccessToken.empty() || std::chrono::steady_clock::now() >= this->TokenExpiry)
+	{
+		Log::Info("SpotifyAPI: Access token expired or missing, refreshing...");
+		this->RefreshAccessToken([this]()
+			{
+				this->FetchMediaData(); 
+			});
 		return;
+	}
 
 	CurlRequest request;
 
 	request.url = "https://api.spotify.com/v1/me/player/currently-playing";
 
 	request.headers = {
-		{ "Authorization", std::format("Bearer {}", this->AccessToken) }
+		{ "Authorization", std::string("Bearer " + AccessToken) }
 	};
 
 	HttpWrapper::SendCurlRequest(request, [this](int code, std::string result)
 		{
+			switch (code)
+			{
+			case 429: {
+				this->Title = "Rate Limited";
+				this->Artist = "Rate Limited";
+				return;
+			}
+			case 403: {
+				this->Title = "Bad OAuth request";
+				this->Artist = "Bad OAuth request";
+				return;
+			}
+			case 401: {
+				this->Title = "Bad OAuth request";
+				this->Artist = "Bad OAuth request";
+				return;
+			}
+			case 204: {
+				this->Title = "Not Playing";
+				this->Artist = "Not Playing";
+
+				this->Progress = 0;
+				this->Duration = 0;
+
+				this->CurrentlyPlaying = false;
+				return;
+			}
+			default:
+				break;
+			}
+
 			try
 			{
 				nlohmann::json json = nlohmann::json::parse(result);
 
-				Log::Info(json.dump(4));
+				this->CurrentlyPlaying = json["is_playing"];
+				this->Progress = json["progress_ms"];
+				this->Timestamp = json["timestamp"];
+
+				nlohmann::json item = json["item"];
+
+				this->Explicit = item["explicit"];
+				this->Local = item["is_local"];
+
+				this->Duration = item["duration_ms"];
+
+				this->Title = item["name"];
+
+				this->Artist = "";
+
+				nlohmann::json artists = item["artists"];
+
+				std::ostringstream oss;
+
+				for (int i = 0; i < artists.size(); i++)
+				{
+					std::string artistName = artists[i]["name"];
+
+					oss << artistName;
+
+					if (i != artists.size() - 1)
+					{
+						oss << ", ";
+					}
+				}
+
+				this->Artist = oss.str();
 			}
 			catch (const std::exception& e)
 			{
+				Log::Info("Code: {}", code);
 				Log::Error(e.what());
 			}
 		}
@@ -62,6 +134,16 @@ void SpotifyAPI::SetClientSecret(const std::string& secret)
 	this->ClientSecret = secret;
 }
 
+void SpotifyAPI::SetAccessToken(const std::string& accessToken)
+{
+	this->AccessToken = accessToken;
+}
+
+void SpotifyAPI::SetRefreshToken(const std::string& refreshToken)
+{
+	this->RefreshToken = refreshToken;
+}
+
 void SpotifyAPI::RunAuthServer(std::string& code)
 {
 	if (this->m_ServerRunning)
@@ -74,8 +156,6 @@ void SpotifyAPI::RunAuthServer(std::string& code)
 			if (req.has_param("code"))
 			{
 				code = req.get_param_value("code");
-
-				Log::Info("Received Code: {}", code);
 
 				res.set_content("Spotify Authorization Complete! You can close this page.", "text/html");
 
@@ -99,8 +179,7 @@ void SpotifyAPI::RunAuthServer(std::string& code)
 				{
 					std::this_thread::sleep_for(std::chrono::milliseconds(100));
 					this->ForceServerClose();
-
-					this->GetCurrentPlaying();
+					this->FetchMediaData();
 				}
 			).detach();
 		}
@@ -132,6 +211,67 @@ void SpotifyAPI::ForceServerClose()
 		this->m_ServerThread.join();
 }
 
+void SpotifyAPI::RefreshAccessToken(std::function<void()> onRefreshed)
+{
+	if (this->RefreshToken.empty())
+		return;
+
+	CurlRequest request;
+	request.url = "https://accounts.spotify.com/api/token";
+
+	request.body = std::format(
+		"grant_type=refresh_token&refresh_token={}&client_id={}&client_secret={}",
+		this->RefreshToken, this->ClientId, this->ClientSecret
+	);
+
+	request.headers = {
+		{ "Content-Type", "application/x-www-form-urlencoded" }
+	};
+
+	HttpWrapper::SendCurlRequest(request, [this, onRefreshed](int code, std::string result)
+		{
+			try
+			{
+				if (code != 200)
+				{
+					Log::Error("SpotifyAPI::RefreshAccessToken: Request failed with status {}: {}", code, result);
+					this->Authenticated = false;
+					return;
+				}
+
+				nlohmann::json json = nlohmann::json::parse(result);
+
+				if (!json.contains("access_token"))
+				{
+					Log::Error("SpotifyAPI::RefreshAccessToken: No access_token in response: {}", result);
+					this->Authenticated = false;
+					return;
+				}
+
+				this->AccessToken = json["access_token"];
+
+				if (json.contains("refresh_token"))
+					this->RefreshToken = json["refresh_token"];
+
+				int expiresIn = json["expires_in"];
+
+				this->TokenExpiry = std::chrono::steady_clock::now() + std::chrono::seconds(expiresIn);
+
+				Log::Info("Successfully refreshed access token.");
+
+				this->Authenticated = true;
+
+				if (onRefreshed)
+					onRefreshed();
+			}
+			catch (const std::exception& e)
+			{
+				this->Authenticated = false;
+				Log::Error("SpotifyAPI::RefreshAccessToken: Failed to parse response: {}", e.what());
+			}
+		});
+}
+
 std::string SpotifyAPI::Encode(const std::string& url)
 {
 	std::ostringstream escaped;
@@ -151,6 +291,13 @@ std::string SpotifyAPI::Encode(const std::string& url)
 	}
 
 	return escaped.str();
+}
+
+bool SpotifyAPI::IsSongEnded()
+{
+	long timeLeft = this->Duration - this->Progress;
+
+	return timeLeft <= 0;
 }
 
 void SpotifyAPI::ExchangeCode(const std::string& code)
@@ -189,7 +336,9 @@ void SpotifyAPI::ExchangeCode(const std::string& code)
 				this->RefreshToken = json["refresh_token"];
 				this->TokenType = json.value("token_type", "Bearer");
 
-				Log::Info("Access token obtained.");
+				int expiresIn = json["expires_in"];
+
+				this->TokenExpiry = std::chrono::steady_clock::now() + std::chrono::seconds(expiresIn);
 			}
 			catch (const std::exception& e)
 			{
