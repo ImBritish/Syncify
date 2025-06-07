@@ -35,8 +35,7 @@ A [BakkesMod](https://bakkesmod.com/) plugin that displays the currently playing
 11. Still don't see it? Make sure "Show Display" is enabled in the settings.
 
 ## ⚙ Issues
-1. "I don't see t
-2. he song display" -> Make sure you are in a game (can be any game mode just not in the main menu) and Make sure "Show Display" is enabled in the settings.
+1. "I don't see the song display" -> Make sure you are in a game (can be any game mode just not in the main menu) and Make sure "Show Display" is enabled in the settings.
 
 ## 🛠️ Notes
 
