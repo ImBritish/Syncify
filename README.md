@@ -1,6 +1,6 @@
 # 🎵 Syncify
 
-A [BakkesMod](https://bakkesmod.com/) plugin that displays the currently playing media from Windows directly inside Rocket League. Seamlessly see your "Now Playing" track without ever tabbing out!
+A [BakkesMod](https://bakkesmod.com/) plugin that displays the current song you are listening to on Spotify.
 
 ---
 
