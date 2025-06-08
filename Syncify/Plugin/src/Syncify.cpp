@@ -143,7 +143,9 @@ void Syncify::RenderCanvas(CanvasWrapper& canvas)
 		lastTime = now;
 	}
 
-	if (gameWrapper->IsInGame())
+	bool InGame = gameWrapper->IsInGame() || gameWrapper->IsInOnlineGame() || gameWrapper->IsInFreeplay();
+
+	if (InGame)
 	{
 
 		bool NotPlaying = *this->m_SpotifyApi->GetTitle() == "Not Playing" && *this->m_SpotifyApi->GetArtist() == "Not Playing";
