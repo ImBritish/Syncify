@@ -31,8 +31,6 @@ A [BakkesMod](https://bakkesmod.com/) plugin that displays the current song you 
 7. Copy the ClientId and Client Secret into the text fields in the plugins settings window
 8. Press "Authenticate" and your browser will open asking to authorize with Spotify.
 9. Press Accept and you are done!
-10. If you don't see the Song Display make sure you are in a game (can be any game mode just not in the main menu)
-11. Still don't see it? Make sure "Show Display" is enabled in the settings.
 
 ## ⚙ Issues
 1. "I don't see the song display" -> Make sure you are in a game (can be any game mode just not in the main menu) and Make sure "Show Display" is enabled in the settings.
