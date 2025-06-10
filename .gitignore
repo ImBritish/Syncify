@@ -3,3 +3,4 @@
 /plugins
 /.zip
 *.zip
+/vcpkg_installed
