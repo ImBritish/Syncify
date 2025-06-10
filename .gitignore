@@ -1,3 +1,5 @@
 /.vs
 /build
 /plugins
+/.zip
+*.zip
