@@ -14,7 +14,7 @@ A [BakkesMod](https://bakkesmod.com/) plugin that displays the current song you 
 ## 📦 Installation
 
 1. Open the Plugin-Manager in Plugins tab in BakkesMod
-2. Enter the ID: 574
+2. Enter the ID: 575
 3. Press the button "Install By ID"
 4. Enjoy the plugin!
 
