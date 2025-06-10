@@ -129,6 +129,9 @@
     <ClInclude Include="Plugin\external\imgui\imstb_truetype.h" />
     <ClInclude Include="Plugin\pch.h" />
     <ClInclude Include="Plugin\external\bakkes\gui\GuiBase.h" />
+    <ClInclude Include="Plugin\src\enum\impl\DisplayMode.h" />
+    <ClInclude Include="Plugin\src\enum\impl\SizeMode.h" />
+    <ClInclude Include="Plugin\src\enum\JavaEnum.h" />
     <ClInclude Include="Plugin\src\json\json.hpp" />
     <ClInclude Include="Plugin\src\Syncify.h" />
     <ClInclude Include="Plugin\src\logger\Logger.h" />

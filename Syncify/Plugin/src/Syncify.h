@@ -8,8 +8,15 @@
 #include "version.h"
 
 #include "spotify/SpotifyAPI.h"
+#include "enum/impl/DisplayMode.h"
+#include "enum/impl/SizeMode.h"
 
 constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH) "." stringify(VERSION_BUILD);
+
+enum DisplayModeEnum
+{
+	Simple, Compact, Extended
+};
 
 class Syncify: public BakkesMod::Plugin::BakkesModPlugin, public SettingsWindowBase, public PluginWindowBase
 {
@@ -19,6 +26,12 @@ public: // Overrides
 	void RenderSettings() override;
 	void RenderWindow() override;
 	void Render() override;
+private:
+	bool bIsInGame() { return gameWrapper->IsInGame() || gameWrapper->IsInOnlineGame() || gameWrapper->IsInFreeplay(); }
+	bool bShowControls() { return gameWrapper->IsCursorVisible() == 2; }
+	bool bNotPlaying() { return *this->m_SpotifyApi->GetTitle() == "Not Playing" && *this->m_SpotifyApi->GetArtist() == "Not Playing"; }
+
+	ImVec2 CalcTextSize(const char* text, ImFont* font = nullptr);
 public:
 	void RenderCanvas(CanvasWrapper& canvas);
 
@@ -27,5 +40,10 @@ public:
 private:
 	std::shared_ptr<SpotifyAPI> m_SpotifyApi;
 private:
-	bool DisplayOverlay = true, HideWhenNotPlaying = true;
+	bool DisplayOverlay = true, HideWhenNotPlaying = true, DynamicSize = true;
+	DisplayMode CurrentDisplayMode = DisplayMode::Compact;
+	SizeMode CurrentSizeMode = SizeMode::Dynamic;
+private:
+	ImFont* FontLarge{};
+	ImFont* FontRegular{};
 };

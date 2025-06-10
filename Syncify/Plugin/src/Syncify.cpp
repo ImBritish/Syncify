@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "Syncify.h"
 
+#include "bakkesmod/wrappers/GuiManagerWrapper.h"
+
 #include <fstream>
 
 BAKKESMOD_PLUGIN(Syncify, "Syncify", plugin_version, PLUGINTYPE_FREEPLAY)
@@ -16,6 +18,17 @@ void Syncify::onLoad()
 	this->LoadData();
 
 	this->m_SpotifyApi->RefreshAccessToken(nullptr);
+
+	auto gui = gameWrapper->GetGUIManager();
+
+	auto [codeLarge, fontLarge] = gui.LoadFont("FontLarge", "../../font.ttf", 18);
+	auto [codeRegular, fontRegular] = gui.LoadFont("FontRegular", "../../font.ttf", 14);
+
+	if (codeLarge == 2)
+		this->FontLarge = fontLarge;
+
+	if (codeRegular == 2)
+		this->FontRegular = fontRegular;
 
 	gameWrapper->RegisterDrawable([this](CanvasWrapper canvas) 
 		{
@@ -35,33 +48,108 @@ void Syncify::RenderSettings()
 {
 	if (!this->m_SpotifyApi->IsAuthenticated())
 	{
-		ImGui::InputText("Client Id", this->m_SpotifyApi->GetClientId());
-		ImGui::InputText("Client Secret", this->m_SpotifyApi->GetClientSecret(), ImGuiInputTextFlags_Password);
-
-		if (ImGui::Button("Authenticate"))
+		ImGui::BeginChild("##xx Authentication", ImVec2(300, 110), true);
 		{
-			this->m_SpotifyApi->Authenticate();
-			this->SaveData();
+			float titleWidth = (300 / 2) - (ImGui::CalcTextSize("Authentication").x / 2);
+
+			ImGui::SetCursorPosX(titleWidth);
+			ImGui::Text("Authentication");
+
+			ImGui::Separator();
+
+			ImGui::InputText("Client Id", this->m_SpotifyApi->GetClientId());
+			ImGui::InputText("Client Secret", this->m_SpotifyApi->GetClientSecret(), ImGuiInputTextFlags_Password);
+
+			if (ImGui::Button("Authenticate"))
+			{
+				this->m_SpotifyApi->Authenticate();
+				this->SaveData();
+			}
 		}
+		ImGui::EndChild();
 	}
-	else
+
+	ImGui::BeginChild("##xx Settings", ImVec2(250, 250), true, this->m_SpotifyApi->IsAuthenticated() ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoInputs);
 	{
+		float titleWidth = (250 / 2) - (ImGui::CalcTextSize("Settings").x / 2);
+
+		ImGui::SetCursorPosX(titleWidth);
+		ImGui::Text("Settings");
+
+		ImGui::Separator();
+
 		if (ImGui::Checkbox("Show Overlay", &DisplayOverlay))
 		{
 			gameWrapper->Execute([this](GameWrapper* gw)
 				{
-					cvarManager->executeCommand("togglemenu " + GetMenuName());
+					if (DisplayOverlay)
+					{
+						cvarManager->executeCommand("openmenu " + GetMenuName());
+					}
+					else
+					{
+						cvarManager->executeCommand("closemenu " + GetMenuName());
+					}
 				}
 			);
 		}
 
 		ImGui::Checkbox("Hide When 'Not Playing'", &this->HideWhenNotPlaying);
+
+		ImGui::Separator();
+
+		float modeTitleWidth = (250 / 2) - (ImGui::CalcTextSize("Style").x / 2);
+
+		ImGui::SetCursorPosX(titleWidth);
+		ImGui::Text("Style");
+
+		ImGui::Separator();
+
+		if (ImGui::BeginCombo("##xx Style", this->CurrentDisplayMode.name().c_str()))
+		{
+			for (const DisplayMode* displayMode : this->CurrentDisplayMode.values())
+			{
+				bool Selected = displayMode->ordinal() == this->CurrentDisplayMode.ordinal();
+
+				if (ImGui::Selectable(displayMode->name().c_str(), Selected))
+				{
+					this->CurrentDisplayMode = *displayMode;
+				}
+			}
+
+			ImGui::EndCombo();
+		}
 	}
+	ImGui::EndChild();
 }
 
 void Syncify::Render()
 {
-	if (!ImGui::Begin(menuTitle_.c_str(), &isWindowOpen_, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
+	if (this->m_SpotifyApi && !this->m_SpotifyApi->IsAuthenticated())
+	{
+		if (!ImGui::Begin(menuTitle_.c_str(), &isWindowOpen_, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize))
+		{
+			ImGui::End();
+			return;
+		}
+
+		ImGui::SetWindowSize({ 155, 50 });
+
+		ImGui::Text("Authentication Required");
+		ImGui::Text("F2 -> Plugins -> Syncify");
+
+		ImGui::End();
+		return;
+	}
+
+	ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
+
+	if (this->CurrentDisplayMode != DisplayMode::Simple)
+	{
+		WindowFlags += ImGuiWindowFlags_NoBackground;
+	}
+
+	if (!ImGui::Begin(menuTitle_.c_str(), &isWindowOpen_, WindowFlags))
 	{
 		ImGui::End();
 		return;
@@ -77,54 +165,193 @@ void Syncify::Render()
 	}
 }
 
-void Syncify::RenderWindow() ///TODO: Make a clean UI
+void Syncify::RenderWindow() // TODO: Make a clean UI
 {
 	if (!DisplayOverlay || !isWindowOpen_ || !gameWrapper)
 		return;
 
-	if (!this->m_SpotifyApi || !this->m_SpotifyApi->IsAuthenticated())
+	if (!this->m_SpotifyApi)
 		return;
 
 	bool ShowControls = gameWrapper->IsCursorVisible() == 2;
 
+	if (!this->FontLarge)
+	{
+		auto gui = gameWrapper->GetGUIManager();
+		this->FontLarge = gui.GetFont("FontLarge");
+	}
+
+	if (!this->FontRegular)
+	{
+		auto gui = gameWrapper->GetGUIManager();
+		this->FontRegular = gui.GetFont("FontRegular");
+	}
+
 	std::string Title = *this->m_SpotifyApi->GetTitle(), Artist = *this->m_SpotifyApi->GetArtist();
 
-	float titleSizeX = ImGui::CalcTextSize(std::string(("Now Playing: ") + Title).c_str()).x;
-	float artistSizeX = ImGui::CalcTextSize(std::string(("Artist: ") + Artist).c_str()).x;
-
-	float trueSizeX = (titleSizeX >= artistSizeX ? titleSizeX : artistSizeX) + 20;
-
-	if (trueSizeX < 175)
-		trueSizeX = 175;
-
-	ImGui::SetWindowSize({ trueSizeX, (float)(ShowControls ? 70 : 50) });
-
-	ImGui::Text("Now Playing: %s", Title.c_str());
-	ImGui::Text("Artist: %s", Artist.c_str());
-
-	/*if (ShowControls)
+	switch (this->CurrentDisplayMode.ordinal())
 	{
-		ImGui::SetNextWindowSize({ 400, 100 });
-
-		if (ImGui::Button("Previous"))
+		case DisplayModeEnum::Simple: 
 		{
-			this->m_SpotifyApi->FetchMediaData();
+			float titleSizeX = ImGui::CalcTextSize(std::string(("Now Playing: ") + Title).c_str()).x;
+			float artistSizeX = ImGui::CalcTextSize(std::string(("Artist: ") + Artist).c_str()).x;
+
+			float finalSize = std::max((float) titleSizeX, (float) artistSizeX) + 20;
+			finalSize = std::max((float) finalSize, 175.f);
+
+			ImGui::SetWindowSize({ finalSize, (float)(ShowControls ? 70 : 50) });
+
+			ImGui::Text("Now Playing: %s", Title.c_str());
+			ImGui::Text("Artist: %s", Artist.c_str());
+			break;
 		}
-
-		ImGui::SameLine();
-
-		if (ImGui::Button(this->m_SpotifyApi->IsPlaying() ? "Pause" : "Play"))
+		case DisplayModeEnum::Compact:
 		{
-			this->m_SpotifyApi->FetchMediaData();
+			ImVec2 MinBounds = ImVec2(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y);
+			ImVec2 MaxBounds = ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowSize().x, ImGui::GetWindowPos().y + ImGui::GetWindowSize().y);
+
+			float titleSizeX = this->CalcTextSize(Title.c_str(), this->FontLarge).x;
+
+			float artistSizeX = this->CalcTextSize(Artist.c_str(), this->FontRegular).x;
+
+			float finalSize = std::min(225.f, std::max(std::max((float) titleSizeX, (float) artistSizeX) + 15, 175.f));
+
+			ImGui::SetWindowSize({ finalSize, 70 });
+
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+			float availableWidth = MaxBounds.x - MinBounds.x - 10.0f;
+			ImVec2 titleTextPos = ImVec2(MinBounds.x + 5.0f, MinBounds.y + 8.0f);
+			float overflow = titleSizeX - availableWidth;
+
+			ImGui::GetBackgroundDrawList()->AddRectFilled(
+				MinBounds, MaxBounds, ImColor(35, 35, 35) 
+			);
+
+			if (this->FontLarge != nullptr)
+				ImGui::PushFont(this->FontLarge);
+
+			if (overflow <= 0.0f)
+			{
+				drawList->AddText(titleTextPos, IM_COL32(255, 255, 255, 255), Title.c_str());
+			}
+			else
+			{
+				float speed = 40.0f;
+				float waitTime = 3.0f;
+
+				float t = ImGui::GetTime();
+
+				float scrollDistance = overflow * 2.0f;
+
+				float cycleTime = scrollDistance / speed + 2.0f * waitTime;
+
+				float cyclePos = fmod(t, cycleTime);
+
+				float offset = 0.0f;
+				if (cyclePos < waitTime)
+				{
+					offset = 0.0f;
+				}
+				else if (cyclePos < waitTime + (overflow / speed))
+				{
+					float scrollT = cyclePos - waitTime;
+					offset = scrollT * speed;
+				}
+				else if (cyclePos < waitTime + (overflow / speed) + waitTime)
+				{
+					offset = overflow;
+				}
+				else
+				{
+					float scrollT = cyclePos - waitTime - (overflow / speed) - waitTime;
+					offset = overflow - scrollT * speed;
+				}
+
+				ImVec2 scrollPos = ImVec2(titleTextPos.x - offset, titleTextPos.y);
+				drawList->AddText(scrollPos, IM_COL32(255, 255, 255, 255), Title.c_str());
+			}
+
+			if (this->FontLarge != nullptr)
+				ImGui::PopFont();
+
+			if (this->FontRegular != nullptr)
+				ImGui::PushFont(this->FontRegular);
+
+			drawList->AddText(
+				ImVec2(MinBounds.x + 5, MinBounds.y + 30), ImColor(255, 255, 255), Artist.c_str()
+			);
+
+			if (this->FontRegular != nullptr)
+				ImGui::PopFont();
+
+			drawList->AddRectFilled(
+				ImVec2(MinBounds.x + 5, MaxBounds.y - 10), ImVec2(MaxBounds.x - 5, MaxBounds.y - 5), ImColor(55, 55, 55)
+			);
+
+			ImVec2 min = MinBounds;
+			ImVec2 max = MaxBounds;
+
+			float padding = 5.0f;
+			static float animationProgress = 0.0f;
+
+			float barHeight = 5.0f;
+			float yPos = max.y - barHeight - padding;
+
+			float barStartX = min.x + padding;
+			float barEndX = max.x - padding;
+
+			float barWidth = barEndX - barStartX;
+
+			float progress = this->m_SpotifyApi->GetProgress();
+			float duration = this->m_SpotifyApi->GetDuration();
+			float targetProgress = (duration > 0.0f) ? progress / duration : 0.0f;
+
+			float progressFraction = (duration > 0.0f) ? progress / duration : 0.0f;
+			progressFraction = std::clamp(progressFraction, 0.0f, 1.0f);
+
+			float deltaTime = ImGui::GetIO().DeltaTime;
+			float animationSpeed = 10.0f;
+
+			animationProgress = ImLerp(animationProgress, targetProgress, 1.0f - std::exp(-animationSpeed * deltaTime));
+
+			drawList->AddRectFilled(
+				ImVec2(barStartX, yPos),
+				ImVec2(barStartX + barWidth * animationProgress, yPos + barHeight),
+				ImColor(0, 200, 0, 255), 3.0f
+			);
+
+			int totalSec = static_cast<int>(duration / 1000.0f);
+			int progressSec = static_cast<int>(progress / 1000.0f);
+
+			std::string timeStr = std::format("{:01d}:{:02d} / {:01d}:{:02d}",
+				progressSec / 60, progressSec % 60,
+				totalSec / 60, totalSec % 60
+			);
+
+			ImVec2 textPos = ImVec2(barEndX - ImGui::CalcTextSize(timeStr.c_str()).x, yPos - 16);
+			drawList->AddText(textPos, IM_COL32(255, 255, 255, 180), timeStr.c_str());
+			break;
 		}
-
-		ImGui::SameLine();
-
-		if (ImGui::Button("Next"))
+		case DisplayModeEnum::Extended:
 		{
-			this->m_SpotifyApi->FetchMediaData();
+			break;
 		}
-	}*/
+	}
+}
+
+ImVec2 Syncify::CalcTextSize(const char* text, ImFont* font)
+{
+	if (font == nullptr)
+		return ImGui::CalcTextSize(text);
+
+	const float font_size = font->FontSize;
+
+	ImVec2 text_size = font->CalcTextSizeA(font_size, FLT_MAX, -1.0F, text, NULL, NULL);
+
+	text_size.x = IM_FLOOR(text_size.x + 0.95f);
+
+	return text_size;
 }
 
 void Syncify::RenderCanvas(CanvasWrapper& canvas)
@@ -143,50 +370,36 @@ void Syncify::RenderCanvas(CanvasWrapper& canvas)
 		lastTime = now;
 	}
 
-	bool InGame = gameWrapper->IsInGame() || gameWrapper->IsInOnlineGame() || gameWrapper->IsInFreeplay();
-
-	if (InGame)
+	if (!this->bIsInGame())
 	{
+		if (this->isWindowOpen_)
+			cvarManager->executeCommand("closemenu " + GetMenuName());
 
-		bool NotPlaying = *this->m_SpotifyApi->GetTitle() == "Not Playing" && *this->m_SpotifyApi->GetArtist() == "Not Playing";
-
-		if (isWindowOpen_)
-		{
-			if (this->HideWhenNotPlaying)
-			{
-				if (NotPlaying)
-				{
-					cvarManager->executeCommand("togglemenu " + GetMenuName());
-				}
-			}
-		}
-		else
-		{
-			if (DisplayOverlay)
-			{
-				if (NotPlaying && this->HideWhenNotPlaying)
-				{
-					return;
-				}
-				else 
-				{
-					cvarManager->executeCommand("togglemenu " + GetMenuName());
-				}
-			}
-		}
-
-		//if (isWindowOpen_ && *this->m_SpotifyApi->GetTitle() == "Not Playing" && *this->m_SpotifyApi->GetArtist() == "Not Playing" && this->HideWhenNotPlaying)
-		//{
-		//	cvarManager->executeCommand("togglemenu " + GetMenuName());
-		//}
-
-		//if (!isWindowOpen_ && DisplayOverlay && gameWrapper->IsInGame())
-		//	cvarManager->executeCommand("togglemenu " + GetMenuName());
+		return;
 	}
-	else
+
+	// Currently In A Game (Should Render If DisplayOverlay is Enabled)
+
+	if (!this->isWindowOpen_ && this->DisplayOverlay)
 	{
-		if (isWindowOpen_)
-			cvarManager->executeCommand("togglemenu " + GetMenuName());
+		if (this->bNotPlaying() && this->HideWhenNotPlaying)
+		{
+			return;
+		}
+
+		cvarManager->executeCommand("openmenu " + GetMenuName());
+		return;
+	}
+
+	if (this->isWindowOpen_ && this->HideWhenNotPlaying && this->bNotPlaying())
+	{
+		cvarManager->executeCommand("closemenu " + GetMenuName());
+		return;
+	}
+
+	if (this->isWindowOpen_ && !this->DisplayOverlay)
+	{
+		cvarManager->executeCommand("closemenu " + GetMenuName());
 	}
 }
 

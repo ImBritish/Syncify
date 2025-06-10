@@ -19,6 +19,9 @@ public:
 	void ForceServerClose();
 	void RefreshAccessToken(std::function<void()> onRefreshed);
 
+	void SetTitle(std::string title) { this->Title = title; }
+	void SetArtist(std::string artist) { this->Artist = artist; }
+
 	void SetClientId(const std::string& clientId);
 	void SetClientSecret(const std::string& secret);
 	void SetAccessToken(const std::string& accessToken);

@@ -10,6 +10,7 @@
 #include <memory>
 
 #include <Plugin/external/imgui/imgui.h>
+#include <Plugin/external/imgui/imgui_internal.h>
 #include <Plugin/external/imgui/imgui_stdlib.h>
 #include <Plugin/external/imgui/imgui_searchablecombo.h>
 #include <Plugin/external/imgui/imgui_rangeslider.h>
