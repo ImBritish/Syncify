@@ -46,4 +46,6 @@ private:
 private:
 	ImFont* FontLarge{};
 	ImFont* FontRegular{};
+private:
+	float g_AnimSpeed = 40.0f, g_AnimWaitTime = 3.0f, g_Padding = 5.0f;
 };

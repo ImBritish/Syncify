@@ -222,7 +222,9 @@ void Syncify::RenderWindow() // TODO: Make a clean UI
 
 			float availableWidth = MaxBounds.x - MinBounds.x - 10.0f;
 			ImVec2 titleTextPos = ImVec2(MinBounds.x + 5.0f, MinBounds.y + 8.0f);
-			float overflow = titleSizeX - availableWidth;
+			ImVec2 artistTextPos = ImVec2(MinBounds.x + 5.0f, MinBounds.y + 30.0f);
+			float titleOverflow = titleSizeX - availableWidth;
+			float artistOverflow = artistSizeX - availableWidth;
 
 			ImGui::GetBackgroundDrawList()->AddRectFilled(
 				MinBounds, MaxBounds, ImColor(35, 35, 35) 
@@ -231,41 +233,38 @@ void Syncify::RenderWindow() // TODO: Make a clean UI
 			if (this->FontLarge != nullptr)
 				ImGui::PushFont(this->FontLarge);
 
-			if (overflow <= 0.0f)
+			if (titleOverflow <= 0.0f)
 			{
 				drawList->AddText(titleTextPos, IM_COL32(255, 255, 255, 255), Title.c_str());
 			}
 			else
 			{
-				float speed = 40.0f;
-				float waitTime = 3.0f;
-
 				float t = ImGui::GetTime();
 
-				float scrollDistance = overflow * 2.0f;
+				float scrollDistance = titleOverflow * 2.0f;
 
-				float cycleTime = scrollDistance / speed + 2.0f * waitTime;
+				float cycleTime = scrollDistance / g_AnimSpeed + 2.0f * g_AnimWaitTime;
 
 				float cyclePos = fmod(t, cycleTime);
 
 				float offset = 0.0f;
-				if (cyclePos < waitTime)
+				if (cyclePos < g_AnimWaitTime)
 				{
 					offset = 0.0f;
 				}
-				else if (cyclePos < waitTime + (overflow / speed))
+				else if (cyclePos < g_AnimWaitTime + (titleOverflow / g_AnimSpeed))
 				{
-					float scrollT = cyclePos - waitTime;
-					offset = scrollT * speed;
+					float scrollT = cyclePos - g_AnimWaitTime;
+					offset = scrollT * g_AnimSpeed;
 				}
-				else if (cyclePos < waitTime + (overflow / speed) + waitTime)
+				else if (cyclePos < g_AnimWaitTime + (titleOverflow / g_AnimSpeed) + g_AnimWaitTime)
 				{
-					offset = overflow;
+					offset = titleOverflow;
 				}
 				else
 				{
-					float scrollT = cyclePos - waitTime - (overflow / speed) - waitTime;
-					offset = overflow - scrollT * speed;
+					float scrollT = cyclePos - g_AnimWaitTime - (titleOverflow / g_AnimSpeed) - g_AnimWaitTime;
+					offset = titleOverflow - scrollT * g_AnimSpeed;
 				}
 
 				ImVec2 scrollPos = ImVec2(titleTextPos.x - offset, titleTextPos.y);
@@ -278,9 +277,43 @@ void Syncify::RenderWindow() // TODO: Make a clean UI
 			if (this->FontRegular != nullptr)
 				ImGui::PushFont(this->FontRegular);
 
-			drawList->AddText(
-				ImVec2(MinBounds.x + 5, MinBounds.y + 30), ImColor(255, 255, 255), Artist.c_str()
-			);
+			if (artistOverflow <= 0) {
+				drawList->AddText(
+					ImVec2(MinBounds.x + 5, MinBounds.y + 30), ImColor(255, 255, 255), Artist.c_str()
+				);
+			}
+			else {
+				float tA = ImGui::GetTime();
+
+				float scrollDistanceA = artistOverflow * 2.0f;
+
+				float cycleTimeA = scrollDistanceA / g_AnimSpeed + 2.0f * g_AnimWaitTime;
+
+				float cyclePosA = fmod(tA, cycleTimeA);
+
+				float offsetA = 0.0f;
+				if (cyclePosA < g_AnimWaitTime)
+				{
+					offsetA = 0.0f;
+				}
+				else if (cyclePosA < g_AnimWaitTime + (artistOverflow / g_AnimSpeed))
+				{
+					float scrollT = cyclePosA - g_AnimWaitTime;
+					offsetA = scrollT * g_AnimSpeed;
+				}
+				else if (cyclePosA < g_AnimWaitTime + (artistOverflow / g_AnimSpeed) + g_AnimWaitTime)
+				{
+					offsetA = artistOverflow;
+				}
+				else
+				{
+					float scrollA = cyclePosA - g_AnimWaitTime - (artistOverflow / g_AnimSpeed) - g_AnimWaitTime;
+					offsetA = artistOverflow - scrollA * g_AnimSpeed;
+				}
+
+				ImVec2 scrollPosA = ImVec2(artistTextPos.x - offsetA, artistTextPos.y);
+				drawList->AddText(scrollPosA, IM_COL32(255, 255, 255, 255), Artist.c_str());
+			}
 
 			if (this->FontRegular != nullptr)
 				ImGui::PopFont();
@@ -292,14 +325,13 @@ void Syncify::RenderWindow() // TODO: Make a clean UI
 			ImVec2 min = MinBounds;
 			ImVec2 max = MaxBounds;
 
-			float padding = 5.0f;
 			static float animationProgress = 0.0f;
 
 			float barHeight = 5.0f;
-			float yPos = max.y - barHeight - padding;
+			float yPos = max.y - barHeight - g_Padding;
 
-			float barStartX = min.x + padding;
-			float barEndX = max.x - padding;
+			float barStartX = min.x + g_Padding;
+			float barEndX = max.x - g_Padding;
 
 			float barWidth = barEndX - barStartX;
 
@@ -329,7 +361,8 @@ void Syncify::RenderWindow() // TODO: Make a clean UI
 				totalSec / 60, totalSec % 60
 			);
 
-			ImVec2 textPos = ImVec2(barEndX - ImGui::CalcTextSize(timeStr.c_str()).x, yPos - 16);
+			ImVec2 textPos = ImVec2(barEndX - this->CalcTextSize(timeStr.c_str()).x, yPos - 16);
+
 			drawList->AddText(textPos, IM_COL32(255, 255, 255, 180), timeStr.c_str());
 			break;
 		}
