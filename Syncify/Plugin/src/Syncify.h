@@ -40,7 +40,7 @@ public:
 private:
 	std::shared_ptr<SpotifyAPI> m_SpotifyApi;
 private:
-	bool DisplayOverlay = true, HideWhenNotPlaying = true, DynamicSize = true;
+	bool ShowOverlay = true, HideWhenNotPlaying = true;
 	DisplayMode CurrentDisplayMode = DisplayMode::Compact;
 	SizeMode CurrentSizeMode = SizeMode::Dynamic;
 private:
@@ -48,4 +48,6 @@ private:
 	ImFont* FontRegular{};
 private:
 	float g_AnimSpeed = 40.0f, g_AnimWaitTime = 3.0f, g_Padding = 5.0f;
+private:
+	float ProgressBarColor[3] = { 0.f, 0.78f, 0.f };
 };

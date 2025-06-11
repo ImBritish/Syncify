@@ -202,7 +202,10 @@ void SpotifyAPI::RunAuthServer(std::string& code)
 
 void SpotifyAPI::ForceServerClose()
 {
-	Log::Info("Shutting down Auth Server");
+	if (!this->m_ServerRunning)
+		return;
+
+	Log::Warning("Shutting down Auth Server");
 
 	this->m_ServerRunning = false;
 	this->m_Server.stop();

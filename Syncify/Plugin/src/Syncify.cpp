@@ -78,11 +78,11 @@ void Syncify::RenderSettings()
 
 		ImGui::Separator();
 
-		if (ImGui::Checkbox("Show Overlay", &DisplayOverlay))
+		if (ImGui::Checkbox("Show Overlay", &ShowOverlay))
 		{
 			gameWrapper->Execute([this](GameWrapper* gw)
 				{
-					if (DisplayOverlay)
+					if (ShowOverlay)
 					{
 						cvarManager->executeCommand("openmenu " + GetMenuName());
 					}
@@ -105,7 +105,7 @@ void Syncify::RenderSettings()
 
 		ImGui::Separator();
 
-		if (ImGui::BeginCombo("##xx Style", this->CurrentDisplayMode.name().c_str()))
+		if (ImGui::BeginCombo("Display Type", this->CurrentDisplayMode.name().c_str()))
 		{
 			for (const DisplayMode* displayMode : this->CurrentDisplayMode.values())
 			{
@@ -119,6 +119,23 @@ void Syncify::RenderSettings()
 
 			ImGui::EndCombo();
 		}
+
+		if (ImGui::BeginCombo("Sizing Mode", this->CurrentSizeMode.name().c_str()))
+		{
+			for (const SizeMode* sizeMode : this->CurrentSizeMode.values())
+			{
+				bool Selected = sizeMode->ordinal() == this->CurrentSizeMode.ordinal();
+
+				if (ImGui::Selectable(sizeMode->name().c_str(), Selected))
+				{
+					this->CurrentSizeMode = *sizeMode;
+				}
+			}
+
+			ImGui::EndCombo();
+		}
+
+		ImGui::ColorEdit3("ProgressBar Color", this->ProgressBarColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoInputs);
 	}
 	ImGui::EndChild();
 }
@@ -167,7 +184,7 @@ void Syncify::Render()
 
 void Syncify::RenderWindow() // TODO: Make a clean UI
 {
-	if (!DisplayOverlay || !isWindowOpen_ || !gameWrapper)
+	if (!ShowOverlay || !isWindowOpen_ || !gameWrapper)
 		return;
 
 	if (!this->m_SpotifyApi)
@@ -191,7 +208,7 @@ void Syncify::RenderWindow() // TODO: Make a clean UI
 
 	switch (this->CurrentDisplayMode.ordinal())
 	{
-		case DisplayModeEnum::Simple: 
+		case DisplayModeEnum::Simple:
 		{
 			float titleSizeX = ImGui::CalcTextSize(std::string(("Now Playing: ") + Title).c_str()).x;
 			float artistSizeX = ImGui::CalcTextSize(std::string(("Artist: ") + Artist).c_str()).x;
@@ -350,7 +367,7 @@ void Syncify::RenderWindow() // TODO: Make a clean UI
 			drawList->AddRectFilled(
 				ImVec2(barStartX, yPos),
 				ImVec2(barStartX + barWidth * animationProgress, yPos + barHeight),
-				ImColor(0, 200, 0, 255), 3.0f
+				ImColor(ProgressBarColor[0], ProgressBarColor[1], ProgressBarColor[2]), 3.0f
 			);
 
 			int totalSec = static_cast<int>(duration / 1000.0f);
@@ -413,7 +430,7 @@ void Syncify::RenderCanvas(CanvasWrapper& canvas)
 
 	// Currently In A Game (Should Render If DisplayOverlay is Enabled)
 
-	if (!this->isWindowOpen_ && this->DisplayOverlay)
+	if (!this->isWindowOpen_ && this->ShowOverlay)
 	{
 		if (this->bNotPlaying() && this->HideWhenNotPlaying)
 		{
@@ -430,7 +447,7 @@ void Syncify::RenderCanvas(CanvasWrapper& canvas)
 		return;
 	}
 
-	if (this->isWindowOpen_ && !this->DisplayOverlay)
+	if (this->isWindowOpen_ && !this->ShowOverlay)
 	{
 		cvarManager->executeCommand("closemenu " + GetMenuName());
 	}
@@ -445,23 +462,28 @@ void Syncify::SaveData()
 		std::filesystem::create_directories(latestSavePath.parent_path());
 	}
 
-	nlohmann::json saveData;
+	nlohmann::json j;
 
-	saveData["ClientId"] = *this->m_SpotifyApi->GetClientId();
-	saveData["ClientSecret"] = *this->m_SpotifyApi->GetClientSecret();
-	saveData["AccessToken"] = *this->m_SpotifyApi->GetAccessToken();
-	saveData["RefreshToken"] = *this->m_SpotifyApi->GetRefreshToken();
+	j["ClientId"] = *this->m_SpotifyApi->GetClientId();
+	j["ClientSecret"] = *this->m_SpotifyApi->GetClientSecret();
+	j["AccessToken"] = *this->m_SpotifyApi->GetAccessToken();
+	j["RefreshToken"] = *this->m_SpotifyApi->GetRefreshToken();
 
-	nlohmann::json options = saveData["Options"];
+	j["Options"]["ShowOverlay"] = this->ShowOverlay;
+	j["Options"]["HideWhenNotPlaying"] = this->HideWhenNotPlaying;
 
-	options["ShowOverlay"] = this->DisplayOverlay;
-	options["HideWhenNotPlaying"] = this->HideWhenNotPlaying;
+	j["Style"]["DisplayMode"] = this->CurrentDisplayMode.ordinal();
+	j["Style"]["SizeMode"] = this->CurrentSizeMode.ordinal();
+
+	j["Style"]["ProgressBarColor"]["R"] = this->ProgressBarColor[0];
+	j["Style"]["ProgressBarColor"]["G"] = this->ProgressBarColor[1];
+	j["Style"]["ProgressBarColor"]["B"] = this->ProgressBarColor[2];
 
 	std::ofstream outFile(latestSavePath);
 
 	if (outFile.is_open())
 	{
-		outFile << saveData.dump(4);
+		outFile << j.dump(4);
 		outFile.close();
 		Log::Info("Saved Settings!");
 	}
@@ -507,12 +529,49 @@ void Syncify::LoadData()
 		nlohmann::json options = data["Options"];
 
 		if (options.contains("ShowOverlay"))
-			this->DisplayOverlay = options["ShowOverlay"];
+			this->ShowOverlay = options["ShowOverlay"];
 
 		if (options.contains("HideWhenNotPlaying"))
 			this->HideWhenNotPlaying = options["HideWhenNotPlaying"];
 	}
 
+	if (data.contains("Style"))
+	{
+		nlohmann::json style = data["Style"];
+
+		if (style.contains("DisplayMode"))
+		{
+			for (const DisplayMode* mode : DisplayMode::values())
+			{
+				if (mode->ordinal() == (int) style["DisplayMode"])
+				{
+					this->CurrentDisplayMode = *mode;
+					break;
+				}
+			}
+		}
+
+		if (style.contains("SizeMode"))
+		{
+			for (const SizeMode* mode : SizeMode::values())
+			{
+				if (mode->ordinal() == (int) style["SizeMode"])
+				{
+					this->CurrentSizeMode = *mode;
+					break;
+				}
+			}
+		}
+
+		if (style.contains("ProgressBarColor"))
+		{
+			nlohmann::json progressBar = style["ProgressBarColor"];
+
+			this->ProgressBarColor[0] = progressBar["R"];
+			this->ProgressBarColor[1] = progressBar["G"];
+			this->ProgressBarColor[2] = progressBar["B"];
+		}
+	}
+
 	inFile.close();
-	Log::Info("Loaded Latest Save.");
 }
