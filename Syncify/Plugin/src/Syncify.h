@@ -50,4 +50,5 @@ private:
 	float g_AnimSpeed = 40.0f, g_AnimWaitTime = 3.0f, g_Padding = 5.0f;
 private:
 	float ProgressBarColor[3] = { 0.f, 0.78f, 0.f };
+	float BackgroundRounding = 0.f, ProgressBarRounding = 0.f;
 };

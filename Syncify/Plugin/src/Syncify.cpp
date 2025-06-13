@@ -67,9 +67,11 @@ void Syncify::RenderSettings()
 			}
 		}
 		ImGui::EndChild();
+
+		return;
 	}
 
-	ImGui::BeginChild("##xx Settings", ImVec2(250, 250), true, this->m_SpotifyApi->IsAuthenticated() ? ImGuiWindowFlags_None : ImGuiWindowFlags_NoInputs);
+	ImGui::BeginChild("##xx Settings", ImVec2(250, 250), true);
 	{
 		float titleWidth = (250 / 2) - (ImGui::CalcTextSize("Settings").x / 2);
 
@@ -105,10 +107,13 @@ void Syncify::RenderSettings()
 
 		ImGui::Separator();
 
-		if (ImGui::BeginCombo("Display Type", this->CurrentDisplayMode.name().c_str()))
+		if (ImGui::BeginCombo("Type", this->CurrentDisplayMode.name().c_str()))
 		{
 			for (const DisplayMode* displayMode : this->CurrentDisplayMode.values())
 			{
+				if (displayMode->ordinal() == DisplayModeEnum::Extended)
+					continue;
+
 				bool Selected = displayMode->ordinal() == this->CurrentDisplayMode.ordinal();
 
 				if (ImGui::Selectable(displayMode->name().c_str(), Selected))
@@ -120,22 +125,17 @@ void Syncify::RenderSettings()
 			ImGui::EndCombo();
 		}
 
-		if (ImGui::BeginCombo("Sizing Mode", this->CurrentSizeMode.name().c_str()))
+		if (this->CurrentDisplayMode.ordinal() != DisplayModeEnum::Simple)
 		{
-			for (const SizeMode* sizeMode : this->CurrentSizeMode.values())
-			{
-				bool Selected = sizeMode->ordinal() == this->CurrentSizeMode.ordinal();
+			ImGui::Separator();
 
-				if (ImGui::Selectable(sizeMode->name().c_str(), Selected))
-				{
-					this->CurrentSizeMode = *sizeMode;
-				}
-			}
+			ImGui::SliderFloat("Backgreound Rounding", &this->BackgroundRounding, 0.f, 14.f, "%.1f");
 
-			ImGui::EndCombo();
+			ImGui::Separator();
+
+			ImGui::ColorEdit3("ProgressBar Color", this->ProgressBarColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoInputs);
+			ImGui::SliderFloat("ProgressBar Rounding", &this->ProgressBarRounding, 0.f, 10.f, "%.1f");
 		}
-
-		ImGui::ColorEdit3("ProgressBar Color", this->ProgressBarColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoInputs);
 	}
 	ImGui::EndChild();
 }
@@ -182,7 +182,7 @@ void Syncify::Render()
 	}
 }
 
-void Syncify::RenderWindow() // TODO: Make a clean UI
+void Syncify::RenderWindow()
 {
 	if (!ShowOverlay || !isWindowOpen_ || !gameWrapper)
 		return;
@@ -244,7 +244,7 @@ void Syncify::RenderWindow() // TODO: Make a clean UI
 			float artistOverflow = artistSizeX - availableWidth;
 
 			ImGui::GetBackgroundDrawList()->AddRectFilled(
-				MinBounds, MaxBounds, ImColor(35, 35, 35) 
+				MinBounds, MaxBounds, ImColor(35, 35, 35), this->BackgroundRounding
 			);
 
 			if (this->FontLarge != nullptr)
@@ -336,7 +336,7 @@ void Syncify::RenderWindow() // TODO: Make a clean UI
 				ImGui::PopFont();
 
 			drawList->AddRectFilled(
-				ImVec2(MinBounds.x + 5, MaxBounds.y - 10), ImVec2(MaxBounds.x - 5, MaxBounds.y - 5), ImColor(55, 55, 55)
+				ImVec2(MinBounds.x + 5, MaxBounds.y - 10), ImVec2(MaxBounds.x - 5, MaxBounds.y - 5), ImColor(55, 55, 55), this->ProgressBarRounding
 			);
 
 			ImVec2 min = MinBounds;
@@ -367,7 +367,7 @@ void Syncify::RenderWindow() // TODO: Make a clean UI
 			drawList->AddRectFilled(
 				ImVec2(barStartX, yPos),
 				ImVec2(barStartX + barWidth * animationProgress, yPos + barHeight),
-				ImColor(ProgressBarColor[0], ProgressBarColor[1], ProgressBarColor[2]), 3.0f
+				ImColor(ProgressBarColor[0], ProgressBarColor[1], ProgressBarColor[2]), this->ProgressBarRounding
 			);
 
 			int totalSec = static_cast<int>(duration / 1000.0f);
@@ -475,9 +475,13 @@ void Syncify::SaveData()
 	j["Style"]["DisplayMode"] = this->CurrentDisplayMode.ordinal();
 	j["Style"]["SizeMode"] = this->CurrentSizeMode.ordinal();
 
-	j["Style"]["ProgressBarColor"]["R"] = this->ProgressBarColor[0];
-	j["Style"]["ProgressBarColor"]["G"] = this->ProgressBarColor[1];
-	j["Style"]["ProgressBarColor"]["B"] = this->ProgressBarColor[2];
+	j["Style"]["Rounding"] = this->BackgroundRounding;
+
+	j["Style"]["ProgressBar"]["Color"]["R"] = this->ProgressBarColor[0];
+	j["Style"]["ProgressBar"]["Color"]["G"] = this->ProgressBarColor[1];
+	j["Style"]["ProgressBar"]["Color"]["B"] = this->ProgressBarColor[2];
+
+	j["Style"]["ProgressBar"]["Rounding"] = this->ProgressBarRounding;
 
 	std::ofstream outFile(latestSavePath);
 
@@ -533,11 +537,14 @@ void Syncify::LoadData()
 
 		if (options.contains("HideWhenNotPlaying"))
 			this->HideWhenNotPlaying = options["HideWhenNotPlaying"];
-	}
+	} 
 
 	if (data.contains("Style"))
 	{
 		nlohmann::json style = data["Style"];
+
+		if (style.contains("Rounding"))
+			this->BackgroundRounding = style["Rounding"];
 
 		if (style.contains("DisplayMode"))
 		{
@@ -563,13 +570,21 @@ void Syncify::LoadData()
 			}
 		}
 
-		if (style.contains("ProgressBarColor"))
+		if (style.contains("ProgressBar"))
 		{
-			nlohmann::json progressBar = style["ProgressBarColor"];
+			nlohmann::json progressBar = style["ProgressBar"];
 
-			this->ProgressBarColor[0] = progressBar["R"];
-			this->ProgressBarColor[1] = progressBar["G"];
-			this->ProgressBarColor[2] = progressBar["B"];
+			if (progressBar.contains("Rounding"))
+				this->ProgressBarRounding = progressBar["Rounding"];
+
+			if (progressBar.contains("Color"))
+			{
+				nlohmann::json pbColor = progressBar["Color"];
+
+				this->ProgressBarColor[0] = pbColor["R"];
+				this->ProgressBarColor[1] = pbColor["G"];
+				this->ProgressBarColor[2] = pbColor["B"];
+			}
 		}
 	}
 
