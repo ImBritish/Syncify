@@ -71,7 +71,7 @@ void Syncify::RenderSettings()
 		return;
 	}
 
-	ImGui::BeginChild("##xx Settings", ImVec2(250, 250), true);
+	ImGui::BeginChild("##xx Settings", ImVec2(450, 220), true);
 	{
 		float titleWidth = (250 / 2) - (ImGui::CalcTextSize("Settings").x / 2);
 
@@ -129,7 +129,7 @@ void Syncify::RenderSettings()
 		{
 			ImGui::Separator();
 
-			ImGui::SliderFloat("Backgreound Rounding", &this->BackgroundRounding, 0.f, 14.f, "%.1f");
+			ImGui::SliderFloat("Background Rounding", &this->BackgroundRounding, 0.f, 14.f, "%.1f");
 
 			ImGui::Separator();
 
