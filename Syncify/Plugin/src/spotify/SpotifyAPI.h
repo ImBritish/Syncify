@@ -4,7 +4,7 @@
 
 #include <httplib.h>
 
-#include "../json/json.hpp"
+#include <nlohmann/json.hpp>
 
 #include <Windows.h>
 #include <shellapi.h>

@@ -152,9 +152,6 @@
     <ClInclude Include="Plugin\src\spotify\SpotifyAPI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Plugin\src\json\json.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Plugin\src\enum\JavaEnum.h">
       <Filter>Header Files</Filter>
     </ClInclude>

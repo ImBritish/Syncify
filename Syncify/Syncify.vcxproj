@@ -138,7 +138,6 @@
     <ClInclude Include="Plugin\src\enum\impl\DisplayMode.h" />
     <ClInclude Include="Plugin\src\enum\impl\SizeMode.h" />
     <ClInclude Include="Plugin\src\enum\JavaEnum.h" />
-    <ClInclude Include="Plugin\src\json\json.hpp" />
     <ClInclude Include="Plugin\src\Syncify.h" />
     <ClInclude Include="Plugin\src\logger\Logger.h" />
     <ClInclude Include="resource.h" />
