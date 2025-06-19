@@ -11,7 +11,7 @@
 #include "enum/impl/DisplayMode.h"
 #include "enum/impl/SizeMode.h"
 
-constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH) "." stringify(VERSION_BUILD);
+constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH);
 
 enum DisplayModeEnum
 {
