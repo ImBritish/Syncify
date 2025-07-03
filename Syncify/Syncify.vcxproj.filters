@@ -84,6 +84,9 @@
     <ClCompile Include="Plugin\src\spotify\SpotifyAPI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Plugin\src\hidden\StatusImpl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Plugin\external\imgui\imgui_rangeslider.h">
@@ -159,6 +162,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Plugin\src\enum\impl\SizeMode.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Plugin\src\hidden\StatusImpl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

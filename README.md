@@ -6,8 +6,16 @@ A [BakkesMod](https://bakkesmod.com/) plugin that displays the current song you 
 
 ## ✨ Features
 
-- 🎶 Displays current song title and artist
-- ⏯️ Control media (Play, Pause, Next, Previous) - Soon
+- 🎶 Displays current song title and artist as an overlay in-game!
+- ⭐ Displays the current "in-game status" as the song title and artist!
+
+---
+## ⭐ Preview
+![Overlay](preview/overlay.png)
+
+![Status](preview/status.png)
+
+![Settings](preview/settings.png)
 
 ---
 
@@ -19,7 +27,6 @@ A [BakkesMod](https://bakkesmod.com/) plugin that displays the current song you 
 4. Enjoy the plugin!
 
 ---
-
 ## 📦 Setup
 
 1. Head over to [Spotify Developer Portal](https://developer.spotify.com/dashboard)
@@ -43,4 +50,5 @@ A [BakkesMod](https://bakkesmod.com/) plugin that displays the current song you 
 
 ## 🔗 Credits
 
-Made with ❤️ by Mediacy
+- [Mediacy](https://github.com/ImBritish) - Creator ❤️
+- [SoulDaMeep](https://github.com/SoulDaMeep) - Current Song as Online Status ❤️

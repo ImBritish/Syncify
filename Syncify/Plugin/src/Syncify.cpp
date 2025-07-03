@@ -18,7 +18,10 @@ void Syncify::onLoad()
 	this->LoadData();
 
 	this->m_SpotifyApi->RefreshAccessToken(nullptr);
-
+#ifdef SYNCIFY_STATUSIMPL
+	status = std::make_shared<StatusImpl>(gameWrapper, m_SpotifyApi);
+	status->ApplyStatus();
+#endif
 	auto gui = gameWrapper->GetGUIManager();
 
 	auto [codeLarge, fontLarge] = gui.LoadFont("FontLarge", "../../font.ttf", 18);
@@ -30,7 +33,7 @@ void Syncify::onLoad()
 	if (codeRegular == 2)
 		this->FontRegular = fontRegular;
 
-	gameWrapper->RegisterDrawable([this](CanvasWrapper canvas) 
+	gameWrapper->RegisterDrawable([this](CanvasWrapper canvas)
 		{
 			this->RenderCanvas(canvas);
 		}
@@ -97,6 +100,13 @@ void Syncify::RenderSettings()
 		}
 
 		ImGui::Checkbox("Hide When 'Not Playing'", &this->HideWhenNotPlaying);
+
+		ImGui::Checkbox("Display Custom Status", this->m_SpotifyApi->UseCustomStatus());
+		if (ImGui::IsItemHovered()) {
+			ImGui::BeginTooltip();
+			ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.f }, "This feature is experimental and can cause game crashes.");
+			ImGui::EndTooltip();
+		}
 
 		ImGui::Separator();
 
@@ -208,185 +218,185 @@ void Syncify::RenderWindow()
 
 	switch (this->CurrentDisplayMode.ordinal())
 	{
-		case DisplayModeEnum::Simple:
+	case DisplayModeEnum::Simple:
+	{
+		float titleSizeX = ImGui::CalcTextSize(std::string(("Now Playing: ") + Title).c_str()).x;
+		float artistSizeX = ImGui::CalcTextSize(std::string(("Artist: ") + Artist).c_str()).x;
+
+		float finalSize = std::max((float)titleSizeX, (float)artistSizeX) + 20;
+		finalSize = std::max((float)finalSize, 175.f);
+
+		ImGui::SetWindowSize({ finalSize, (float)(ShowControls ? 70 : 50) });
+
+		ImGui::Text("Now Playing: %s", Title.c_str());
+		ImGui::Text("Artist: %s", Artist.c_str());
+		break;
+	}
+	case DisplayModeEnum::Compact:
+	{
+		ImVec2 MinBounds = ImVec2(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y);
+		ImVec2 MaxBounds = ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowSize().x, ImGui::GetWindowPos().y + ImGui::GetWindowSize().y);
+
+		float titleSizeX = this->CalcTextSize(Title.c_str(), this->FontLarge).x;
+
+		float artistSizeX = this->CalcTextSize(Artist.c_str(), this->FontRegular).x;
+
+		float finalSize = std::min(225.f, std::max(std::max((float)titleSizeX, (float)artistSizeX) + 15, 175.f));
+
+		ImGui::SetWindowSize({ finalSize, 70 });
+
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+		float availableWidth = MaxBounds.x - MinBounds.x - 10.0f;
+		ImVec2 titleTextPos = ImVec2(MinBounds.x + 5.0f, MinBounds.y + 8.0f);
+		ImVec2 artistTextPos = ImVec2(MinBounds.x + 5.0f, MinBounds.y + 30.0f);
+		float titleOverflow = titleSizeX - availableWidth;
+		float artistOverflow = artistSizeX - availableWidth;
+
+		ImGui::GetBackgroundDrawList()->AddRectFilled(
+			MinBounds, MaxBounds, ImColor(35, 35, 35), this->BackgroundRounding
+		);
+
+		if (this->FontLarge != nullptr)
+			ImGui::PushFont(this->FontLarge);
+
+		if (titleOverflow <= 0.0f)
 		{
-			float titleSizeX = ImGui::CalcTextSize(std::string(("Now Playing: ") + Title).c_str()).x;
-			float artistSizeX = ImGui::CalcTextSize(std::string(("Artist: ") + Artist).c_str()).x;
-
-			float finalSize = std::max((float) titleSizeX, (float) artistSizeX) + 20;
-			finalSize = std::max((float) finalSize, 175.f);
-
-			ImGui::SetWindowSize({ finalSize, (float)(ShowControls ? 70 : 50) });
-
-			ImGui::Text("Now Playing: %s", Title.c_str());
-			ImGui::Text("Artist: %s", Artist.c_str());
-			break;
+			drawList->AddText(titleTextPos, IM_COL32(255, 255, 255, 255), Title.c_str());
 		}
-		case DisplayModeEnum::Compact:
+		else
 		{
-			ImVec2 MinBounds = ImVec2(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y);
-			ImVec2 MaxBounds = ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowSize().x, ImGui::GetWindowPos().y + ImGui::GetWindowSize().y);
+			float t = ImGui::GetTime();
 
-			float titleSizeX = this->CalcTextSize(Title.c_str(), this->FontLarge).x;
+			float scrollDistance = titleOverflow * 2.0f;
 
-			float artistSizeX = this->CalcTextSize(Artist.c_str(), this->FontRegular).x;
+			float cycleTime = scrollDistance / g_AnimSpeed + 2.0f * g_AnimWaitTime;
 
-			float finalSize = std::min(225.f, std::max(std::max((float) titleSizeX, (float) artistSizeX) + 15, 175.f));
+			float cyclePos = fmod(t, cycleTime);
 
-			ImGui::SetWindowSize({ finalSize, 70 });
-
-			ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-			float availableWidth = MaxBounds.x - MinBounds.x - 10.0f;
-			ImVec2 titleTextPos = ImVec2(MinBounds.x + 5.0f, MinBounds.y + 8.0f);
-			ImVec2 artistTextPos = ImVec2(MinBounds.x + 5.0f, MinBounds.y + 30.0f);
-			float titleOverflow = titleSizeX - availableWidth;
-			float artistOverflow = artistSizeX - availableWidth;
-
-			ImGui::GetBackgroundDrawList()->AddRectFilled(
-				MinBounds, MaxBounds, ImColor(35, 35, 35), this->BackgroundRounding
-			);
-
-			if (this->FontLarge != nullptr)
-				ImGui::PushFont(this->FontLarge);
-
-			if (titleOverflow <= 0.0f)
+			float offset = 0.0f;
+			if (cyclePos < g_AnimWaitTime)
 			{
-				drawList->AddText(titleTextPos, IM_COL32(255, 255, 255, 255), Title.c_str());
+				offset = 0.0f;
+			}
+			else if (cyclePos < g_AnimWaitTime + (titleOverflow / g_AnimSpeed))
+			{
+				float scrollT = cyclePos - g_AnimWaitTime;
+				offset = scrollT * g_AnimSpeed;
+			}
+			else if (cyclePos < g_AnimWaitTime + (titleOverflow / g_AnimSpeed) + g_AnimWaitTime)
+			{
+				offset = titleOverflow;
 			}
 			else
 			{
-				float t = ImGui::GetTime();
-
-				float scrollDistance = titleOverflow * 2.0f;
-
-				float cycleTime = scrollDistance / g_AnimSpeed + 2.0f * g_AnimWaitTime;
-
-				float cyclePos = fmod(t, cycleTime);
-
-				float offset = 0.0f;
-				if (cyclePos < g_AnimWaitTime)
-				{
-					offset = 0.0f;
-				}
-				else if (cyclePos < g_AnimWaitTime + (titleOverflow / g_AnimSpeed))
-				{
-					float scrollT = cyclePos - g_AnimWaitTime;
-					offset = scrollT * g_AnimSpeed;
-				}
-				else if (cyclePos < g_AnimWaitTime + (titleOverflow / g_AnimSpeed) + g_AnimWaitTime)
-				{
-					offset = titleOverflow;
-				}
-				else
-				{
-					float scrollT = cyclePos - g_AnimWaitTime - (titleOverflow / g_AnimSpeed) - g_AnimWaitTime;
-					offset = titleOverflow - scrollT * g_AnimSpeed;
-				}
-
-				ImVec2 scrollPos = ImVec2(titleTextPos.x - offset, titleTextPos.y);
-				drawList->AddText(scrollPos, IM_COL32(255, 255, 255, 255), Title.c_str());
+				float scrollT = cyclePos - g_AnimWaitTime - (titleOverflow / g_AnimSpeed) - g_AnimWaitTime;
+				offset = titleOverflow - scrollT * g_AnimSpeed;
 			}
 
-			if (this->FontLarge != nullptr)
-				ImGui::PopFont();
-
-			if (this->FontRegular != nullptr)
-				ImGui::PushFont(this->FontRegular);
-
-			if (artistOverflow <= 0) {
-				drawList->AddText(
-					ImVec2(MinBounds.x + 5, MinBounds.y + 30), ImColor(255, 255, 255), Artist.c_str()
-				);
-			}
-			else {
-				float tA = ImGui::GetTime();
-
-				float scrollDistanceA = artistOverflow * 2.0f;
-
-				float cycleTimeA = scrollDistanceA / g_AnimSpeed + 2.0f * g_AnimWaitTime;
-
-				float cyclePosA = fmod(tA, cycleTimeA);
-
-				float offsetA = 0.0f;
-				if (cyclePosA < g_AnimWaitTime)
-				{
-					offsetA = 0.0f;
-				}
-				else if (cyclePosA < g_AnimWaitTime + (artistOverflow / g_AnimSpeed))
-				{
-					float scrollT = cyclePosA - g_AnimWaitTime;
-					offsetA = scrollT * g_AnimSpeed;
-				}
-				else if (cyclePosA < g_AnimWaitTime + (artistOverflow / g_AnimSpeed) + g_AnimWaitTime)
-				{
-					offsetA = artistOverflow;
-				}
-				else
-				{
-					float scrollA = cyclePosA - g_AnimWaitTime - (artistOverflow / g_AnimSpeed) - g_AnimWaitTime;
-					offsetA = artistOverflow - scrollA * g_AnimSpeed;
-				}
-
-				ImVec2 scrollPosA = ImVec2(artistTextPos.x - offsetA, artistTextPos.y);
-				drawList->AddText(scrollPosA, IM_COL32(255, 255, 255, 255), Artist.c_str());
-			}
-
-			if (this->FontRegular != nullptr)
-				ImGui::PopFont();
-
-			drawList->AddRectFilled(
-				ImVec2(MinBounds.x + 5, MaxBounds.y - 10), ImVec2(MaxBounds.x - 5, MaxBounds.y - 5), ImColor(55, 55, 55), this->ProgressBarRounding
-			);
-
-			ImVec2 min = MinBounds;
-			ImVec2 max = MaxBounds;
-
-			static float animationProgress = 0.0f;
-
-			float barHeight = 5.0f;
-			float yPos = max.y - barHeight - g_Padding;
-
-			float barStartX = min.x + g_Padding;
-			float barEndX = max.x - g_Padding;
-
-			float barWidth = barEndX - barStartX;
-
-			float progress = this->m_SpotifyApi->GetProgress();
-			float duration = this->m_SpotifyApi->GetDuration();
-			float targetProgress = (duration > 0.0f) ? progress / duration : 0.0f;
-
-			float progressFraction = (duration > 0.0f) ? progress / duration : 0.0f;
-			progressFraction = std::clamp(progressFraction, 0.0f, 1.0f);
-
-			float deltaTime = ImGui::GetIO().DeltaTime;
-			float animationSpeed = 10.0f;
-
-			animationProgress = ImLerp(animationProgress, targetProgress, 1.0f - std::exp(-animationSpeed * deltaTime));
-
-			drawList->AddRectFilled(
-				ImVec2(barStartX, yPos),
-				ImVec2(barStartX + barWidth * animationProgress, yPos + barHeight),
-				ImColor(ProgressBarColor[0], ProgressBarColor[1], ProgressBarColor[2]), this->ProgressBarRounding
-			);
-
-			int totalSec = static_cast<int>(duration / 1000.0f);
-			int progressSec = static_cast<int>(progress / 1000.0f);
-
-			std::string timeStr = std::format("{:01d}:{:02d} / {:01d}:{:02d}",
-				progressSec / 60, progressSec % 60,
-				totalSec / 60, totalSec % 60
-			);
-
-			ImVec2 textPos = ImVec2(barEndX - this->CalcTextSize(timeStr.c_str()).x, yPos - 16);
-
-			drawList->AddText(textPos, IM_COL32(255, 255, 255, 180), timeStr.c_str());
-			break;
+			ImVec2 scrollPos = ImVec2(titleTextPos.x - offset, titleTextPos.y);
+			drawList->AddText(scrollPos, IM_COL32(255, 255, 255, 255), Title.c_str());
 		}
-		case DisplayModeEnum::Extended:
-		{
-			break;
+
+		if (this->FontLarge != nullptr)
+			ImGui::PopFont();
+
+		if (this->FontRegular != nullptr)
+			ImGui::PushFont(this->FontRegular);
+
+		if (artistOverflow <= 0) {
+			drawList->AddText(
+				ImVec2(MinBounds.x + 5, MinBounds.y + 30), ImColor(255, 255, 255), Artist.c_str()
+			);
 		}
+		else {
+			float tA = ImGui::GetTime();
+
+			float scrollDistanceA = artistOverflow * 2.0f;
+
+			float cycleTimeA = scrollDistanceA / g_AnimSpeed + 2.0f * g_AnimWaitTime;
+
+			float cyclePosA = fmod(tA, cycleTimeA);
+
+			float offsetA = 0.0f;
+			if (cyclePosA < g_AnimWaitTime)
+			{
+				offsetA = 0.0f;
+			}
+			else if (cyclePosA < g_AnimWaitTime + (artistOverflow / g_AnimSpeed))
+			{
+				float scrollT = cyclePosA - g_AnimWaitTime;
+				offsetA = scrollT * g_AnimSpeed;
+			}
+			else if (cyclePosA < g_AnimWaitTime + (artistOverflow / g_AnimSpeed) + g_AnimWaitTime)
+			{
+				offsetA = artistOverflow;
+			}
+			else
+			{
+				float scrollA = cyclePosA - g_AnimWaitTime - (artistOverflow / g_AnimSpeed) - g_AnimWaitTime;
+				offsetA = artistOverflow - scrollA * g_AnimSpeed;
+			}
+
+			ImVec2 scrollPosA = ImVec2(artistTextPos.x - offsetA, artistTextPos.y);
+			drawList->AddText(scrollPosA, IM_COL32(255, 255, 255, 255), Artist.c_str());
+		}
+
+		if (this->FontRegular != nullptr)
+			ImGui::PopFont();
+
+		drawList->AddRectFilled(
+			ImVec2(MinBounds.x + 5, MaxBounds.y - 10), ImVec2(MaxBounds.x - 5, MaxBounds.y - 5), ImColor(55, 55, 55), this->ProgressBarRounding
+		);
+
+		ImVec2 min = MinBounds;
+		ImVec2 max = MaxBounds;
+
+		static float animationProgress = 0.0f;
+
+		float barHeight = 5.0f;
+		float yPos = max.y - barHeight - g_Padding;
+
+		float barStartX = min.x + g_Padding;
+		float barEndX = max.x - g_Padding;
+
+		float barWidth = barEndX - barStartX;
+
+		float progress = this->m_SpotifyApi->GetProgress();
+		float duration = this->m_SpotifyApi->GetDuration();
+		float targetProgress = (duration > 0.0f) ? progress / duration : 0.0f;
+
+		float progressFraction = (duration > 0.0f) ? progress / duration : 0.0f;
+		progressFraction = std::clamp(progressFraction, 0.0f, 1.0f);
+
+		float deltaTime = ImGui::GetIO().DeltaTime;
+		float animationSpeed = 10.0f;
+
+		animationProgress = ImLerp(animationProgress, targetProgress, 1.0f - std::exp(-animationSpeed * deltaTime));
+
+		drawList->AddRectFilled(
+			ImVec2(barStartX, yPos),
+			ImVec2(barStartX + barWidth * animationProgress, yPos + barHeight),
+			ImColor(ProgressBarColor[0], ProgressBarColor[1], ProgressBarColor[2]), this->ProgressBarRounding
+		);
+
+		int totalSec = static_cast<int>(duration / 1000.0f);
+		int progressSec = static_cast<int>(progress / 1000.0f);
+
+		std::string timeStr = std::format("{:01d}:{:02d} / {:01d}:{:02d}",
+			progressSec / 60, progressSec % 60,
+			totalSec / 60, totalSec % 60
+		);
+
+		ImVec2 textPos = ImVec2(barEndX - this->CalcTextSize(timeStr.c_str()).x, yPos - 16);
+
+		drawList->AddText(textPos, IM_COL32(255, 255, 255, 180), timeStr.c_str());
+		break;
+	}
+	case DisplayModeEnum::Extended:
+	{
+		break;
+	}
 	}
 }
 
@@ -471,6 +481,7 @@ void Syncify::SaveData()
 
 	j["Options"]["ShowOverlay"] = this->ShowOverlay;
 	j["Options"]["HideWhenNotPlaying"] = this->HideWhenNotPlaying;
+	j["Options"]["ListeningOLS"] = *this->m_SpotifyApi->UseCustomStatus();
 
 	j["Style"]["DisplayMode"] = this->CurrentDisplayMode.ordinal();
 	j["Style"]["SizeMode"] = this->CurrentSizeMode.ordinal();
@@ -537,7 +548,10 @@ void Syncify::LoadData()
 
 		if (options.contains("HideWhenNotPlaying"))
 			this->HideWhenNotPlaying = options["HideWhenNotPlaying"];
-	} 
+
+		if (options.contains("ListeningOLS"))
+			this->m_SpotifyApi->SetCustomStatusEnabled(options["ListeningOLS"]);
+	}
 
 	if (data.contains("Style"))
 	{
@@ -550,7 +564,7 @@ void Syncify::LoadData()
 		{
 			for (const DisplayMode* mode : DisplayMode::values())
 			{
-				if (mode->ordinal() == (int) style["DisplayMode"])
+				if (mode->ordinal() == (int)style["DisplayMode"])
 				{
 					this->CurrentDisplayMode = *mode;
 					break;
@@ -562,7 +576,7 @@ void Syncify::LoadData()
 		{
 			for (const SizeMode* mode : SizeMode::values())
 			{
-				if (mode->ordinal() == (int) style["SizeMode"])
+				if (mode->ordinal() == (int)style["SizeMode"])
 				{
 					this->CurrentSizeMode = *mode;
 					break;

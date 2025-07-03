@@ -22,6 +22,8 @@ public:
 	void SetTitle(std::string title) { this->Title = title; }
 	void SetArtist(std::string artist) { this->Artist = artist; }
 
+	void SetCustomStatusEnabled(bool state) { this->CustomStatus = state; }
+
 	void SetClientId(const std::string& clientId);
 	void SetClientSecret(const std::string& secret);
 	void SetAccessToken(const std::string& accessToken);
@@ -41,6 +43,7 @@ public:
 	long GetTimestamp() { return this->Timestamp; }
 
 	bool IsSongEnded();
+	bool* UseCustomStatus() { return &this->CustomStatus; }
 
 	std::string* GetClientId() { return &this->ClientId; }
 	std::string* GetClientSecret() { return &this->ClientSecret; }
@@ -51,6 +54,8 @@ private:
 	void RunAuthServer(std::string& code);
 
 	std::string Encode(const std::string& url);
+public:
+	bool CustomStatus = false;
 private:
 	bool Authenticated = false;
 private:

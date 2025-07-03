@@ -11,6 +11,9 @@
 #include "enum/impl/DisplayMode.h"
 #include "enum/impl/SizeMode.h"
 
+// Status Implementation
+#include "hidden/StatusImpl.h"
+
 constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH);
 
 enum DisplayModeEnum
@@ -18,8 +21,12 @@ enum DisplayModeEnum
 	Simple, Compact, Extended
 };
 
-class Syncify: public BakkesMod::Plugin::BakkesModPlugin, public SettingsWindowBase, public PluginWindowBase
+class Syncify : public BakkesMod::Plugin::BakkesModPlugin, public SettingsWindowBase, public PluginWindowBase
 {
+#ifdef SYNCIFY_STATUSIMPL
+public:
+	std::shared_ptr<StatusImpl> status;
+#endif
 public: // Overrides
 	void onLoad() override;
 	void onUnload() override;

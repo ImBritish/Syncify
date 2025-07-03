@@ -4,3 +4,4 @@
 /.zip
 *.zip
 /vcpkg_installed
+/Syncify/Plugin/src/hidden

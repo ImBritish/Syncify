@@ -113,6 +113,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Plugin\src\hidden\StatusImpl.cpp" />
     <ClCompile Include="Plugin\src\Syncify.cpp" />
     <ClCompile Include="Plugin\external\bakkes\gui\GuiBase.cpp" />
     <ClCompile Include="Plugin\src\spotify\SpotifyAPI.cpp" />
@@ -138,6 +139,7 @@
     <ClInclude Include="Plugin\src\enum\impl\DisplayMode.h" />
     <ClInclude Include="Plugin\src\enum\impl\SizeMode.h" />
     <ClInclude Include="Plugin\src\enum\JavaEnum.h" />
+    <ClInclude Include="Plugin\src\hidden\StatusImpl.h" />
     <ClInclude Include="Plugin\src\Syncify.h" />
     <ClInclude Include="Plugin\src\logger\Logger.h" />
     <ClInclude Include="resource.h" />
