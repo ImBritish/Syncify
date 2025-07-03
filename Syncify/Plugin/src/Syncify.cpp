@@ -17,21 +17,28 @@ void Syncify::onLoad()
 
 	this->LoadData();
 
+	this->OverlayInstances.emplace(std::make_pair(DisplayMode::Simple, std::make_unique<SimpleOverlay>()));
+	this->OverlayInstances.emplace(std::make_pair(DisplayMode::Compact, std::make_unique<CompactOverlay>()));
+
+	this->CurrentDisplayMode = this->OverlayInstances.at(Settings::CurrentDisplayMode).get();
+
 	this->m_SpotifyApi->RefreshAccessToken(nullptr);
+
 #ifdef SYNCIFY_STATUSIMPL
 	status = std::make_shared<StatusImpl>(gameWrapper, m_SpotifyApi);
 	status->ApplyStatus();
 #endif
+
 	auto gui = gameWrapper->GetGUIManager();
 
 	auto [codeLarge, fontLarge] = gui.LoadFont("FontLarge", "../../font.ttf", 18);
 	auto [codeRegular, fontRegular] = gui.LoadFont("FontRegular", "../../font.ttf", 14);
 
 	if (codeLarge == 2)
-		this->FontLarge = fontLarge;
+		Font::FontLarge = fontLarge;
 
 	if (codeRegular == 2)
-		this->FontRegular = fontRegular;
+		Font::FontRegular = fontRegular;
 
 	gameWrapper->RegisterDrawable([this](CanvasWrapper canvas)
 		{
@@ -83,11 +90,11 @@ void Syncify::RenderSettings()
 
 		ImGui::Separator();
 
-		if (ImGui::Checkbox("Show Overlay", &ShowOverlay))
+		if (ImGui::Checkbox("Show Overlay", &Settings::ShowOverlay))
 		{
 			gameWrapper->Execute([this](GameWrapper* gw)
 				{
-					if (ShowOverlay)
+					if (Settings::ShowOverlay)
 					{
 						cvarManager->executeCommand("openmenu " + GetMenuName());
 					}
@@ -99,7 +106,7 @@ void Syncify::RenderSettings()
 			);
 		}
 
-		ImGui::Checkbox("Hide When 'Not Playing'", &this->HideWhenNotPlaying);
+		ImGui::Checkbox("Hide When 'Not Playing'", &Settings::HideWhenNotPlaying);
 
 		ImGui::Checkbox("Display Custom Status", this->m_SpotifyApi->UseCustomStatus());
 		if (ImGui::IsItemHovered()) {
@@ -117,34 +124,35 @@ void Syncify::RenderSettings()
 
 		ImGui::Separator();
 
-		if (ImGui::BeginCombo("Type", this->CurrentDisplayMode.name().c_str()))
+		if (ImGui::BeginCombo("Type", this->GetDisplayModeName(Settings::CurrentDisplayMode)))
 		{
-			for (const DisplayMode* displayMode : this->CurrentDisplayMode.values())
+			for (uint8_t modeIndex = 0; modeIndex < this->OverlayInstances.size(); ++modeIndex)
 			{
-				if (displayMode->ordinal() == DisplayModeEnum::Extended)
+				if (modeIndex == DisplayMode::Extended) // Don't display extended since i dosent render anything yet
 					continue;
 
-				bool Selected = displayMode->ordinal() == this->CurrentDisplayMode.ordinal();
+				bool Selected = modeIndex == Settings::CurrentDisplayMode;
 
-				if (ImGui::Selectable(displayMode->name().c_str(), Selected))
+				if (ImGui::Selectable(this->GetDisplayModeName(modeIndex), Selected))
 				{
-					this->CurrentDisplayMode = *displayMode;
+					Settings::CurrentDisplayMode = modeIndex;
+					this->CurrentDisplayMode = this->OverlayInstances.at(modeIndex).get();
 				}
 			}
 
 			ImGui::EndCombo();
 		}
 
-		if (this->CurrentDisplayMode.ordinal() != DisplayModeEnum::Simple)
+		if (Settings::CurrentDisplayMode != DisplayMode::Simple)
 		{
 			ImGui::Separator();
 
-			ImGui::SliderFloat("Background Rounding", &this->BackgroundRounding, 0.f, 14.f, "%.1f");
+			ImGui::SliderFloat("Background Rounding", &Settings::BackgroundRounding, 0.f, 14.f, "%.1f");
 
 			ImGui::Separator();
 
-			ImGui::ColorEdit3("ProgressBar Color", this->ProgressBarColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoInputs);
-			ImGui::SliderFloat("ProgressBar Rounding", &this->ProgressBarRounding, 0.f, 10.f, "%.1f");
+			ImGui::ColorEdit3("ProgressBar Color", Settings::DurationBarColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoInputs);
+			ImGui::SliderFloat("ProgressBar Rounding", &Settings::DurationBarRounding, 0.f, 10.f, "%.1f");
 		}
 	}
 	ImGui::EndChild();
@@ -171,7 +179,7 @@ void Syncify::Render()
 
 	ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
 
-	if (this->CurrentDisplayMode != DisplayMode::Simple)
+	if (Settings::CurrentDisplayMode != DisplayMode::Simple)
 	{
 		WindowFlags += ImGuiWindowFlags_NoBackground;
 	}
@@ -194,7 +202,7 @@ void Syncify::Render()
 
 void Syncify::RenderWindow()
 {
-	if (!ShowOverlay || !isWindowOpen_ || !gameWrapper)
+	if (!Settings::ShowOverlay || !isWindowOpen_ || !gameWrapper)
 		return;
 
 	if (!this->m_SpotifyApi)
@@ -202,216 +210,22 @@ void Syncify::RenderWindow()
 
 	bool ShowControls = gameWrapper->IsCursorVisible() == 2;
 
-	if (!this->FontLarge)
+	if (!Font::FontLarge)
 	{
 		auto gui = gameWrapper->GetGUIManager();
-		this->FontLarge = gui.GetFont("FontLarge");
+		Font::FontLarge = gui.GetFont("FontLarge");
 	}
 
-	if (!this->FontRegular)
+	if (!Font::FontRegular)
 	{
 		auto gui = gameWrapper->GetGUIManager();
-		this->FontRegular = gui.GetFont("FontRegular");
+		Font::FontRegular = gui.GetFont("FontRegular");
 	}
 
 	std::string Title = *this->m_SpotifyApi->GetTitle(), Artist = *this->m_SpotifyApi->GetArtist();
 
-	switch (this->CurrentDisplayMode.ordinal())
-	{
-	case DisplayModeEnum::Simple:
-	{
-		float titleSizeX = ImGui::CalcTextSize(std::string(("Now Playing: ") + Title).c_str()).x;
-		float artistSizeX = ImGui::CalcTextSize(std::string(("Artist: ") + Artist).c_str()).x;
-
-		float finalSize = std::max((float)titleSizeX, (float)artistSizeX) + 20;
-		finalSize = std::max((float)finalSize, 175.f);
-
-		ImGui::SetWindowSize({ finalSize, (float)(ShowControls ? 70 : 50) });
-
-		ImGui::Text("Now Playing: %s", Title.c_str());
-		ImGui::Text("Artist: %s", Artist.c_str());
-		break;
-	}
-	case DisplayModeEnum::Compact:
-	{
-		ImVec2 MinBounds = ImVec2(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y);
-		ImVec2 MaxBounds = ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowSize().x, ImGui::GetWindowPos().y + ImGui::GetWindowSize().y);
-
-		float titleSizeX = this->CalcTextSize(Title.c_str(), this->FontLarge).x;
-
-		float artistSizeX = this->CalcTextSize(Artist.c_str(), this->FontRegular).x;
-
-		float finalSize = std::min(225.f, std::max(std::max((float)titleSizeX, (float)artistSizeX) + 15, 175.f));
-
-		ImGui::SetWindowSize({ finalSize, 70 });
-
-		ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-		float availableWidth = MaxBounds.x - MinBounds.x - 10.0f;
-		ImVec2 titleTextPos = ImVec2(MinBounds.x + 5.0f, MinBounds.y + 8.0f);
-		ImVec2 artistTextPos = ImVec2(MinBounds.x + 5.0f, MinBounds.y + 30.0f);
-		float titleOverflow = titleSizeX - availableWidth;
-		float artistOverflow = artistSizeX - availableWidth;
-
-		ImGui::GetBackgroundDrawList()->AddRectFilled(
-			MinBounds, MaxBounds, ImColor(35, 35, 35), this->BackgroundRounding
-		);
-
-		if (this->FontLarge != nullptr)
-			ImGui::PushFont(this->FontLarge);
-
-		if (titleOverflow <= 0.0f)
-		{
-			drawList->AddText(titleTextPos, IM_COL32(255, 255, 255, 255), Title.c_str());
-		}
-		else
-		{
-			float t = ImGui::GetTime();
-
-			float scrollDistance = titleOverflow * 2.0f;
-
-			float cycleTime = scrollDistance / g_AnimSpeed + 2.0f * g_AnimWaitTime;
-
-			float cyclePos = fmod(t, cycleTime);
-
-			float offset = 0.0f;
-			if (cyclePos < g_AnimWaitTime)
-			{
-				offset = 0.0f;
-			}
-			else if (cyclePos < g_AnimWaitTime + (titleOverflow / g_AnimSpeed))
-			{
-				float scrollT = cyclePos - g_AnimWaitTime;
-				offset = scrollT * g_AnimSpeed;
-			}
-			else if (cyclePos < g_AnimWaitTime + (titleOverflow / g_AnimSpeed) + g_AnimWaitTime)
-			{
-				offset = titleOverflow;
-			}
-			else
-			{
-				float scrollT = cyclePos - g_AnimWaitTime - (titleOverflow / g_AnimSpeed) - g_AnimWaitTime;
-				offset = titleOverflow - scrollT * g_AnimSpeed;
-			}
-
-			ImVec2 scrollPos = ImVec2(titleTextPos.x - offset, titleTextPos.y);
-			drawList->AddText(scrollPos, IM_COL32(255, 255, 255, 255), Title.c_str());
-		}
-
-		if (this->FontLarge != nullptr)
-			ImGui::PopFont();
-
-		if (this->FontRegular != nullptr)
-			ImGui::PushFont(this->FontRegular);
-
-		if (artistOverflow <= 0) {
-			drawList->AddText(
-				ImVec2(MinBounds.x + 5, MinBounds.y + 30), ImColor(255, 255, 255), Artist.c_str()
-			);
-		}
-		else {
-			float tA = ImGui::GetTime();
-
-			float scrollDistanceA = artistOverflow * 2.0f;
-
-			float cycleTimeA = scrollDistanceA / g_AnimSpeed + 2.0f * g_AnimWaitTime;
-
-			float cyclePosA = fmod(tA, cycleTimeA);
-
-			float offsetA = 0.0f;
-			if (cyclePosA < g_AnimWaitTime)
-			{
-				offsetA = 0.0f;
-			}
-			else if (cyclePosA < g_AnimWaitTime + (artistOverflow / g_AnimSpeed))
-			{
-				float scrollT = cyclePosA - g_AnimWaitTime;
-				offsetA = scrollT * g_AnimSpeed;
-			}
-			else if (cyclePosA < g_AnimWaitTime + (artistOverflow / g_AnimSpeed) + g_AnimWaitTime)
-			{
-				offsetA = artistOverflow;
-			}
-			else
-			{
-				float scrollA = cyclePosA - g_AnimWaitTime - (artistOverflow / g_AnimSpeed) - g_AnimWaitTime;
-				offsetA = artistOverflow - scrollA * g_AnimSpeed;
-			}
-
-			ImVec2 scrollPosA = ImVec2(artistTextPos.x - offsetA, artistTextPos.y);
-			drawList->AddText(scrollPosA, IM_COL32(255, 255, 255, 255), Artist.c_str());
-		}
-
-		if (this->FontRegular != nullptr)
-			ImGui::PopFont();
-
-		drawList->AddRectFilled(
-			ImVec2(MinBounds.x + 5, MaxBounds.y - 10), ImVec2(MaxBounds.x - 5, MaxBounds.y - 5), ImColor(55, 55, 55), this->ProgressBarRounding
-		);
-
-		ImVec2 min = MinBounds;
-		ImVec2 max = MaxBounds;
-
-		static float animationProgress = 0.0f;
-
-		float barHeight = 5.0f;
-		float yPos = max.y - barHeight - g_Padding;
-
-		float barStartX = min.x + g_Padding;
-		float barEndX = max.x - g_Padding;
-
-		float barWidth = barEndX - barStartX;
-
-		float progress = this->m_SpotifyApi->GetProgress();
-		float duration = this->m_SpotifyApi->GetDuration();
-		float targetProgress = (duration > 0.0f) ? progress / duration : 0.0f;
-
-		float progressFraction = (duration > 0.0f) ? progress / duration : 0.0f;
-		progressFraction = std::clamp(progressFraction, 0.0f, 1.0f);
-
-		float deltaTime = ImGui::GetIO().DeltaTime;
-		float animationSpeed = 10.0f;
-
-		animationProgress = ImLerp(animationProgress, targetProgress, 1.0f - std::exp(-animationSpeed * deltaTime));
-
-		drawList->AddRectFilled(
-			ImVec2(barStartX, yPos),
-			ImVec2(barStartX + barWidth * animationProgress, yPos + barHeight),
-			ImColor(ProgressBarColor[0], ProgressBarColor[1], ProgressBarColor[2]), this->ProgressBarRounding
-		);
-
-		int totalSec = static_cast<int>(duration / 1000.0f);
-		int progressSec = static_cast<int>(progress / 1000.0f);
-
-		std::string timeStr = std::format("{:01d}:{:02d} / {:01d}:{:02d}",
-			progressSec / 60, progressSec % 60,
-			totalSec / 60, totalSec % 60
-		);
-
-		ImVec2 textPos = ImVec2(barEndX - this->CalcTextSize(timeStr.c_str()).x, yPos - 16);
-
-		drawList->AddText(textPos, IM_COL32(255, 255, 255, 180), timeStr.c_str());
-		break;
-	}
-	case DisplayModeEnum::Extended:
-	{
-		break;
-	}
-	}
-}
-
-ImVec2 Syncify::CalcTextSize(const char* text, ImFont* font)
-{
-	if (font == nullptr)
-		return ImGui::CalcTextSize(text);
-
-	const float font_size = font->FontSize;
-
-	ImVec2 text_size = font->CalcTextSizeA(font_size, FLT_MAX, -1.0F, text, NULL, NULL);
-
-	text_size.x = IM_FLOOR(text_size.x + 0.95f);
-
-	return text_size;
+	if (this->CurrentDisplayMode)
+		this->CurrentDisplayMode->RenderOverlay(Title.c_str(), Artist.c_str(), this->m_SpotifyApi->GetProgress(), this->m_SpotifyApi->GetDuration());
 }
 
 void Syncify::RenderCanvas(CanvasWrapper& canvas)
@@ -438,28 +252,21 @@ void Syncify::RenderCanvas(CanvasWrapper& canvas)
 		return;
 	}
 
-	// Currently In A Game (Should Render If DisplayOverlay is Enabled)
-
-	if (!this->isWindowOpen_ && this->ShowOverlay)
+	if (!this->isWindowOpen_ && Settings::ShowOverlay) // Overlay Is Closed But Should Be Open
 	{
-		if (this->bNotPlaying() && this->HideWhenNotPlaying)
+		if (this->bNotPlaying() && Settings::HideWhenNotPlaying) // If there is no song playing and we should hide when not playing -> Keep the menu Closed
 		{
 			return;
 		}
 
-		cvarManager->executeCommand("openmenu " + GetMenuName());
+		cvarManager->executeCommand("openmenu " + GetMenuName()); // Open the window and render Overlay
 		return;
 	}
 
-	if (this->isWindowOpen_ && this->HideWhenNotPlaying && this->bNotPlaying())
+	if (this->isWindowOpen_ && Settings::HideWhenNotPlaying && this->bNotPlaying()) // Window is open but needs closing
 	{
 		cvarManager->executeCommand("closemenu " + GetMenuName());
 		return;
-	}
-
-	if (this->isWindowOpen_ && !this->ShowOverlay)
-	{
-		cvarManager->executeCommand("closemenu " + GetMenuName());
 	}
 }
 
@@ -479,20 +286,20 @@ void Syncify::SaveData()
 	j["AccessToken"] = *this->m_SpotifyApi->GetAccessToken();
 	j["RefreshToken"] = *this->m_SpotifyApi->GetRefreshToken();
 
-	j["Options"]["ShowOverlay"] = this->ShowOverlay;
-	j["Options"]["HideWhenNotPlaying"] = this->HideWhenNotPlaying;
+	j["Options"]["ShowOverlay"] = Settings::ShowOverlay;
+	j["Options"]["HideWhenNotPlaying"] = Settings::HideWhenNotPlaying;
 	j["Options"]["ListeningOLS"] = *this->m_SpotifyApi->UseCustomStatus();
 
-	j["Style"]["DisplayMode"] = this->CurrentDisplayMode.ordinal();
-	j["Style"]["SizeMode"] = this->CurrentSizeMode.ordinal();
+	j["Style"]["DisplayMode"] = Settings::CurrentDisplayMode;
+	//j["Style"]["SizeMode"] = Settings::CurrentSize;
 
-	j["Style"]["Rounding"] = this->BackgroundRounding;
+	j["Style"]["Rounding"] = Settings::BackgroundRounding;
 
-	j["Style"]["ProgressBar"]["Color"]["R"] = this->ProgressBarColor[0];
-	j["Style"]["ProgressBar"]["Color"]["G"] = this->ProgressBarColor[1];
-	j["Style"]["ProgressBar"]["Color"]["B"] = this->ProgressBarColor[2];
+	j["Style"]["ProgressBar"]["Color"]["R"] = Settings::DurationBarColor[0];
+	j["Style"]["ProgressBar"]["Color"]["G"] = Settings::DurationBarColor[1];
+	j["Style"]["ProgressBar"]["Color"]["B"] = Settings::DurationBarColor[2];
 
-	j["Style"]["ProgressBar"]["Rounding"] = this->ProgressBarRounding;
+	j["Style"]["ProgressBar"]["Rounding"] = Settings::DurationBarRounding;
 
 	std::ofstream outFile(latestSavePath);
 
@@ -544,10 +351,10 @@ void Syncify::LoadData()
 		nlohmann::json options = data["Options"];
 
 		if (options.contains("ShowOverlay"))
-			this->ShowOverlay = options["ShowOverlay"];
+			Settings::ShowOverlay = options["ShowOverlay"];
 
 		if (options.contains("HideWhenNotPlaying"))
-			this->HideWhenNotPlaying = options["HideWhenNotPlaying"];
+			Settings::HideWhenNotPlaying = options["HideWhenNotPlaying"];
 
 		if (options.contains("ListeningOLS"))
 			this->m_SpotifyApi->SetCustomStatusEnabled(options["ListeningOLS"]);
@@ -558,49 +365,57 @@ void Syncify::LoadData()
 		nlohmann::json style = data["Style"];
 
 		if (style.contains("Rounding"))
-			this->BackgroundRounding = style["Rounding"];
+			Settings::BackgroundRounding = style["Rounding"];
 
 		if (style.contains("DisplayMode"))
 		{
-			for (const DisplayMode* mode : DisplayMode::values())
-			{
-				if (mode->ordinal() == (int)style["DisplayMode"])
-				{
-					this->CurrentDisplayMode = *mode;
-					break;
-				}
-			}
+			Settings::CurrentDisplayMode = style["DisplayMode"];
 		}
 
-		if (style.contains("SizeMode"))
-		{
-			for (const SizeMode* mode : SizeMode::values())
-			{
-				if (mode->ordinal() == (int)style["SizeMode"])
-				{
-					this->CurrentSizeMode = *mode;
-					break;
-				}
-			}
-		}
+		//if (style.contains("SizeMode"))
+		//{
+		//	for (const SizeMode* mode : SizeMode::values())
+		//	{
+		//		if (mode->ordinal() == (int)style["SizeMode"])
+		//		{
+		//			this->CurrentSizeMode = *mode;
+		//			break;
+		//		}
+		//	}
+		//}
 
 		if (style.contains("ProgressBar"))
 		{
 			nlohmann::json progressBar = style["ProgressBar"];
 
 			if (progressBar.contains("Rounding"))
-				this->ProgressBarRounding = progressBar["Rounding"];
+				Settings::DurationBarRounding = progressBar["Rounding"];
 
 			if (progressBar.contains("Color"))
 			{
 				nlohmann::json pbColor = progressBar["Color"];
 
-				this->ProgressBarColor[0] = pbColor["R"];
-				this->ProgressBarColor[1] = pbColor["G"];
-				this->ProgressBarColor[2] = pbColor["B"];
+				Settings::DurationBarColor[0] = pbColor["R"];
+				Settings::DurationBarColor[1] = pbColor["G"];
+				Settings::DurationBarColor[2] = pbColor["B"];
 			}
 		}
 	}
 
 	inFile.close();
+}
+
+const char* Syncify::GetDisplayModeName(uint8_t mode)
+{
+	switch (mode)
+	{
+	case Simple:
+		return "Simple";
+	case Compact:
+		return "Compact";
+	case Extended:
+		return "Extended";
+	default:
+		return "Unknown";
+	}
 }

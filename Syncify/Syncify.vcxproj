@@ -97,6 +97,8 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Plugin\src\rendering\impl\CompactOverlay.cpp" />
+    <ClCompile Include="Plugin\src\rendering\Overlay.cpp" />
     <ClCompile Include="Plugin\external\imgui\imgui.cpp" />
     <ClCompile Include="Plugin\external\imgui\imguivariouscontrols.cpp" />
     <ClCompile Include="Plugin\external\imgui\imgui_additions.cpp" />
@@ -117,8 +119,11 @@
     <ClCompile Include="Plugin\src\Syncify.cpp" />
     <ClCompile Include="Plugin\external\bakkes\gui\GuiBase.cpp" />
     <ClCompile Include="Plugin\src\spotify\SpotifyAPI.cpp" />
+    <ClCompile Include="Plugin\src\rendering\impl\SimpleOverlay.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Plugin\src\rendering\impl\CompactOverlay.h" />
+    <ClInclude Include="Plugin\src\rendering\Overlay.h" />
     <ClInclude Include="Plugin\external\bakkes\logging\logging.h" />
     <ClInclude Include="Plugin\external\imgui\imconfig.h" />
     <ClInclude Include="Plugin\external\imgui\imgui.h" />
@@ -136,14 +141,13 @@
     <ClInclude Include="Plugin\external\imgui\imstb_truetype.h" />
     <ClInclude Include="Plugin\pch.h" />
     <ClInclude Include="Plugin\external\bakkes\gui\GuiBase.h" />
-    <ClInclude Include="Plugin\src\enum\impl\DisplayMode.h" />
-    <ClInclude Include="Plugin\src\enum\impl\SizeMode.h" />
-    <ClInclude Include="Plugin\src\enum\JavaEnum.h" />
     <ClInclude Include="Plugin\src\hidden\StatusImpl.h" />
+    <ClInclude Include="Plugin\src\rendering\settings\Globals.h" />
     <ClInclude Include="Plugin\src\Syncify.h" />
     <ClInclude Include="Plugin\src\logger\Logger.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Plugin\src\spotify\SpotifyAPI.h" />
+    <ClInclude Include="Plugin\src\rendering\impl\SimpleOverlay.h" />
     <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>

@@ -48,5 +48,5 @@ void PluginWindowBase::OnClose()
 
 void PluginWindowBase::Render()
 {
-	this->RenderWindow();
+	//this->RenderWindow();
 }

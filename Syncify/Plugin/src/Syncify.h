@@ -7,19 +7,24 @@
 
 #include "version.h"
 
+#include "rendering/settings/Globals.h"
+
 #include "spotify/SpotifyAPI.h"
-#include "enum/impl/DisplayMode.h"
-#include "enum/impl/SizeMode.h"
 
 // Status Implementation
 #include "hidden/StatusImpl.h"
 
+#include "rendering/impl/SimpleOverlay.h"
+#include "rendering/impl/CompactOverlay.h"
+
+#include <memory>
+
 constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH);
 
-enum DisplayModeEnum
-{
-	Simple, Compact, Extended
-};
+//enum DisplayModeEnum
+//{
+//	Simple, Compact, Extended
+//};
 
 class Syncify : public BakkesMod::Plugin::BakkesModPlugin, public SettingsWindowBase, public PluginWindowBase
 {
@@ -37,25 +42,27 @@ private:
 	bool bIsInGame() { return gameWrapper->IsInGame() || gameWrapper->IsInOnlineGame() || gameWrapper->IsInFreeplay(); }
 	bool bShowControls() { return gameWrapper->IsCursorVisible() == 2; }
 	bool bNotPlaying() { return *this->m_SpotifyApi->GetTitle() == "Not Playing" && *this->m_SpotifyApi->GetArtist() == "Not Playing"; }
-
-	ImVec2 CalcTextSize(const char* text, ImFont* font = nullptr);
 public:
 	void RenderCanvas(CanvasWrapper& canvas);
 
 	void SaveData();
 	void LoadData();
 private:
+	const char* GetDisplayModeName(uint8_t displayMode);
+private:
 	std::shared_ptr<SpotifyAPI> m_SpotifyApi;
-private:
-	bool ShowOverlay = true, HideWhenNotPlaying = true;
-	DisplayMode CurrentDisplayMode = DisplayMode::Compact;
-	SizeMode CurrentSizeMode = SizeMode::Dynamic;
-private:
-	ImFont* FontLarge{};
-	ImFont* FontRegular{};
-private:
-	float g_AnimSpeed = 40.0f, g_AnimWaitTime = 3.0f, g_Padding = 5.0f;
-private:
-	float ProgressBarColor[3] = { 0.f, 0.78f, 0.f };
-	float BackgroundRounding = 0.f, ProgressBarRounding = 0.f;
+	std::unordered_map<uint8_t, std::unique_ptr<Overlay>> OverlayInstances{};
+	Overlay* CurrentDisplayMode{};
+//private:
+//	bool ShowOverlay = true, HideWhenNotPlaying = true;
+//	DisplayModeEnum CurrentDisplayMode = DisplayModeEnum::Compact;
+//	SizeMode CurrentSizeMode = SizeMode::Dynamic;
+//private:
+//	ImFont* FontLarge{};
+//	ImFont* FontRegular{};
+//private:
+//	float g_AnimSpeed = 40.0f, g_AnimWaitTime = 3.0f, g_Padding = 5.0f;
+//private:
+//	float ProgressBarColor[3] = { 0.f, 0.78f, 0.f };
+//	float BackgroundRounding = 0.f, ProgressBarRounding = 0.f;
 };

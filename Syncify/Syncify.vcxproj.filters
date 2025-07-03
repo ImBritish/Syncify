@@ -87,6 +87,15 @@
     <ClCompile Include="Plugin\src\hidden\StatusImpl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Plugin\src\rendering\Overlay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Plugin\src\rendering\impl\SimpleOverlay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Plugin\src\rendering\impl\CompactOverlay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Plugin\external\imgui\imgui_rangeslider.h">
@@ -155,16 +164,19 @@
     <ClInclude Include="Plugin\src\spotify\SpotifyAPI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Plugin\src\enum\JavaEnum.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Plugin\src\enum\impl\DisplayMode.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Plugin\src\enum\impl\SizeMode.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Plugin\src\hidden\StatusImpl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Plugin\src\rendering\Overlay.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Plugin\src\rendering\impl\SimpleOverlay.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Plugin\src\rendering\impl\CompactOverlay.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Plugin\src\rendering\settings\Globals.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
