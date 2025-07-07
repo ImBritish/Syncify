@@ -58,104 +58,100 @@ void Syncify::RenderSettings()
 {
 	if (!this->m_SpotifyApi->IsAuthenticated())
 	{
-		ImGui::BeginChild("##xx Authentication", ImVec2(300, 110), true);
+		float titleWidth = (ImGui::GetCurrentWindow()->Size.x / 2) - (ImGui::CalcTextSize("Authentication").x / 2);
+
+		ImGui::SetCursorPosX(titleWidth);
+		ImGui::Text("Authentication");
+
+		ImGui::Separator();
+
+		ImGui::InputText("Client Id", this->m_SpotifyApi->GetClientId());
+		ImGui::InputText("Client Secret", this->m_SpotifyApi->GetClientSecret(), ImGuiInputTextFlags_Password);
+
+		if (ImGui::Button("Authenticate"))
 		{
-			float titleWidth = (300 / 2) - (ImGui::CalcTextSize("Authentication").x / 2);
-
-			ImGui::SetCursorPosX(titleWidth);
-			ImGui::Text("Authentication");
-
-			ImGui::Separator();
-
-			ImGui::InputText("Client Id", this->m_SpotifyApi->GetClientId());
-			ImGui::InputText("Client Secret", this->m_SpotifyApi->GetClientSecret(), ImGuiInputTextFlags_Password);
-
-			if (ImGui::Button("Authenticate"))
-			{
-				this->m_SpotifyApi->Authenticate();
-				this->SaveData();
-			}
+			this->m_SpotifyApi->Authenticate();
+			this->SaveData();
 		}
-		ImGui::EndChild();
 
 		return;
 	}
 
-	ImGui::BeginChild("##xx Settings", ImVec2(450, 220), true);
+	float settingsWidth = (ImGui::GetCurrentWindow()->Size.x / 2) - (ImGui::CalcTextSize("Settings").x / 2);
+
+	ImGui::SetCursorPosX(settingsWidth);
+	ImGui::Text("Settings");
+
+	ImGui::Separator();
+
+	if (ImGui::Checkbox("Show Overlay", &Settings::ShowOverlay))
 	{
-		float titleWidth = (250 / 2) - (ImGui::CalcTextSize("Settings").x / 2);
-
-		ImGui::SetCursorPosX(titleWidth);
-		ImGui::Text("Settings");
-
-		ImGui::Separator();
-
-		if (ImGui::Checkbox("Show Overlay", &Settings::ShowOverlay))
-		{
-			gameWrapper->Execute([this](GameWrapper* gw)
-				{
-					if (Settings::ShowOverlay)
-					{
-						cvarManager->executeCommand("openmenu " + GetMenuName());
-					}
-					else
-					{
-						cvarManager->executeCommand("closemenu " + GetMenuName());
-					}
-				}
-			);
-		}
-
-		ImGui::Checkbox("Hide When 'Not Playing'", &Settings::HideWhenNotPlaying);
-
-		ImGui::Checkbox("Display Custom Status", this->m_SpotifyApi->UseCustomStatus());
-		if (ImGui::IsItemHovered()) {
-			ImGui::BeginTooltip();
-			ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.f }, "This feature is experimental and can cause game crashes.");
-			ImGui::EndTooltip();
-		}
-
-		ImGui::Separator();
-
-		float modeTitleWidth = (250 / 2) - (ImGui::CalcTextSize("Style").x / 2);
-
-		ImGui::SetCursorPosX(titleWidth);
-		ImGui::Text("Style");
-
-		ImGui::Separator();
-
-		if (ImGui::BeginCombo("Type", this->GetDisplayModeName(Settings::CurrentDisplayMode)))
-		{
-			for (uint8_t modeIndex = 0; modeIndex < this->OverlayInstances.size(); ++modeIndex)
+		gameWrapper->Execute([this](GameWrapper* gw)
 			{
-				if (modeIndex == DisplayMode::Extended) // Don't display extended since i dosent render anything yet
-					continue;
-
-				bool Selected = modeIndex == Settings::CurrentDisplayMode;
-
-				if (ImGui::Selectable(this->GetDisplayModeName(modeIndex), Selected))
+				if (Settings::ShowOverlay)
 				{
-					Settings::CurrentDisplayMode = modeIndex;
-					this->CurrentDisplayMode = this->OverlayInstances.at(modeIndex).get();
+					cvarManager->executeCommand("openmenu " + GetMenuName());
+				}
+				else
+				{
+					cvarManager->executeCommand("closemenu " + GetMenuName());
 				}
 			}
-
-			ImGui::EndCombo();
-		}
-
-		if (Settings::CurrentDisplayMode != DisplayMode::Simple)
-		{
-			ImGui::Separator();
-
-			ImGui::SliderFloat("Background Rounding", &Settings::BackgroundRounding, 0.f, 14.f, "%.1f");
-
-			ImGui::Separator();
-
-			ImGui::ColorEdit3("ProgressBar Color", Settings::DurationBarColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoInputs);
-			ImGui::SliderFloat("ProgressBar Rounding", &Settings::DurationBarRounding, 0.f, 10.f, "%.1f");
-		}
+		);
 	}
-	ImGui::EndChild();
+
+	ImGui::Checkbox("Hide When 'Not Playing'", &Settings::HideWhenNotPlaying);
+
+	ImGui::Checkbox("Display Custom Status", this->m_SpotifyApi->UseCustomStatus());
+	if (ImGui::IsItemHovered()) {
+		ImGui::BeginTooltip();
+		ImGui::TextColored({ 1.0f, 0.0f, 0.0f, 1.f }, "This feature is experimental and can cause game crashes.");
+		ImGui::EndTooltip();
+	}
+
+	ImGui::SliderFloat("Overlay Width", &Settings::SizeX, 175.f, 400.f);
+	ImGui::SliderFloat("Overlay Height", &Settings::SizeY, 70.f, 125.f);
+	ImGui::SliderInt("Overlay Opacity", &Settings::Opacity, 0, 255);
+
+	ImGui::Separator();
+
+	float modeTitleWidth = (ImGui::GetCurrentWindow()->Size.x / 2) - (ImGui::CalcTextSize("Style").x / 2);
+
+	ImGui::SetCursorPosX(modeTitleWidth);
+	ImGui::Text("Style");
+
+	ImGui::Separator();
+
+	if (ImGui::BeginCombo("Type", this->GetDisplayModeName(Settings::CurrentDisplayMode)))
+	{
+		for (uint8_t modeIndex = 0; modeIndex < this->OverlayInstances.size(); ++modeIndex)
+		{
+			if (modeIndex == DisplayMode::Extended) // Don't display extended since i dosent render anything yet
+				continue;
+
+			bool Selected = modeIndex == Settings::CurrentDisplayMode;
+
+			if (ImGui::Selectable(this->GetDisplayModeName(modeIndex), Selected))
+			{
+				Settings::CurrentDisplayMode = modeIndex;
+				this->CurrentDisplayMode = this->OverlayInstances.at(modeIndex).get();
+			}
+		}
+
+		ImGui::EndCombo();
+	}
+
+	if (Settings::CurrentDisplayMode != DisplayMode::Simple)
+	{
+		ImGui::Separator();
+
+		ImGui::SliderFloat("Background Rounding", &Settings::BackgroundRounding, 0.f, 14.f, "%.1f");
+
+		ImGui::Separator();
+
+		ImGui::ColorEdit3("ProgressBar Color", Settings::DurationBarColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoInputs);
+		ImGui::SliderFloat("ProgressBar Rounding", &Settings::DurationBarRounding, 0.f, 10.f, "%.1f");
+	}
 }
 
 void Syncify::Render()

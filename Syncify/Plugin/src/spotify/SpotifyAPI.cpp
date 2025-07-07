@@ -1,10 +1,10 @@
-#define CPPHTTPLIB_OPENSSL_SUPPORT
-
 #include "pch.h"
 
 #include "SpotifyAPI.h"
 
 #include <functional>
+
+#define CPPHTTPLIB_OPENSSL_SUPPORT
 
 void SpotifyAPI::Authenticate()
 {

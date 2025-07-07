@@ -25,6 +25,9 @@ namespace Settings
 	inline bool CustomOnlineStatus = true;
 
 	inline uint8_t CurrentDisplayMode = DisplayMode::Compact;
+
+	inline float SizeX = 225.f, SizeY = 70.f;
+	inline int Opacity = 255;
 }
 
 namespace Font

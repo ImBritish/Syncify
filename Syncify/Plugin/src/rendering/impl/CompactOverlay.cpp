@@ -10,9 +10,10 @@ void CompactOverlay::RenderOverlay(const char* title, const char* artist, float 
 
 	float artistSizeX = this->CalcTextSize(artist, Font::FontRegular).x;
 
-	float finalSize = std::min(225.f, std::max(std::max((float)titleSizeX, (float)artistSizeX) + 15, 175.f));
+	//float finalSize = std::min(225.f, std::max(std::max((float)titleSizeX, (float)artistSizeX) + 15, 175.f));
+	float finalSize = Settings::SizeX;
 
-	ImGui::SetWindowSize({ finalSize, 70 });
+	ImGui::SetWindowSize({ finalSize, Settings::SizeY });
 
 	ImDrawList* drawList = ImGui::GetWindowDrawList();
 
@@ -23,7 +24,7 @@ void CompactOverlay::RenderOverlay(const char* title, const char* artist, float 
 	float artistOverflow = artistSizeX - availableWidth;
 
 	ImGui::GetBackgroundDrawList()->AddRectFilled(
-		MinBounds, MaxBounds, ImColor(35, 35, 35), Settings::BackgroundRounding
+		MinBounds, MaxBounds, ImColor(35, 35, 35, Settings::Opacity), Settings::BackgroundRounding
 	);
 
 	if (Font::FontLarge != nullptr)
@@ -31,7 +32,7 @@ void CompactOverlay::RenderOverlay(const char* title, const char* artist, float 
 
 	if (titleOverflow <= 0.0f)
 	{
-		drawList->AddText(titleTextPos, IM_COL32(255, 255, 255, 255), title);
+		drawList->AddText(titleTextPos, IM_COL32(255, 255, 255, Settings::Opacity), title);
 	}
 	else
 	{
@@ -64,7 +65,7 @@ void CompactOverlay::RenderOverlay(const char* title, const char* artist, float 
 		}
 
 		ImVec2 scrollPos = ImVec2(titleTextPos.x - offset, titleTextPos.y);
-		drawList->AddText(scrollPos, IM_COL32(255, 255, 255, 255), title);
+		drawList->AddText(scrollPos, IM_COL32(255, 255, 255, Settings::Opacity), title);
 	}
 
 	if (Font::FontLarge != nullptr)
@@ -75,7 +76,7 @@ void CompactOverlay::RenderOverlay(const char* title, const char* artist, float 
 
 	if (artistOverflow <= 0) {
 		drawList->AddText(
-			ImVec2(MinBounds.x + 5, MinBounds.y + 30), ImColor(255, 255, 255), artist
+			ImVec2(MinBounds.x + 5, MinBounds.y + 30), ImColor(255, 255, 255, Settings::Opacity), artist
 		);
 	}
 	else {
@@ -108,14 +109,14 @@ void CompactOverlay::RenderOverlay(const char* title, const char* artist, float 
 		}
 
 		ImVec2 scrollPosA = ImVec2(artistTextPos.x - offsetA, artistTextPos.y);
-		drawList->AddText(scrollPosA, IM_COL32(255, 255, 255, 255), artist);
+		drawList->AddText(scrollPosA, IM_COL32(255, 255, 255, Settings::Opacity), artist);
 	}
 
 	if (Font::FontRegular != nullptr)
 		ImGui::PopFont();
 
 	drawList->AddRectFilled(
-		ImVec2(MinBounds.x + 5, MaxBounds.y - 10), ImVec2(MaxBounds.x - 5, MaxBounds.y - 5), ImColor(55, 55, 55), Settings::DurationBarRounding
+		ImVec2(MinBounds.x + 5, MaxBounds.y - 10), ImVec2(MaxBounds.x - 5, MaxBounds.y - 5), ImColor(55, 55, 55, Settings::Opacity), Settings::DurationBarRounding
 	);
 
 	ImVec2 min = MinBounds;
@@ -144,7 +145,7 @@ void CompactOverlay::RenderOverlay(const char* title, const char* artist, float 
 	drawList->AddRectFilled(
 		ImVec2(barStartX, yPos),
 		ImVec2(barStartX + barWidth * animationProgress, yPos + barHeight),
-		ImColor(Settings::DurationBarColor[0], Settings::DurationBarColor[1], Settings::DurationBarColor[2]), Settings::DurationBarRounding
+		ImColor(Settings::DurationBarColor[0], Settings::DurationBarColor[1], Settings::DurationBarColor[2], Settings::Opacity / 255.f), Settings::DurationBarRounding
 	);
 
 	int totalSec = static_cast<int>(duration / 1000.0f);
@@ -157,5 +158,5 @@ void CompactOverlay::RenderOverlay(const char* title, const char* artist, float 
 
 	ImVec2 textPos = ImVec2(barEndX - this->CalcTextSize(timeStr.c_str()).x, yPos - 16);
 
-	drawList->AddText(textPos, IM_COL32(255, 255, 255, 180), timeStr.c_str());
+	drawList->AddText(textPos, IM_COL32(255, 255, 255, std::clamp(Settings::Opacity, 0, 180)), timeStr.c_str());
 }

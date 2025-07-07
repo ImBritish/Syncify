@@ -61,7 +61,7 @@ private:
 private:
 	std::string ClientId = "", ClientSecret = "", AccessToken = "", RefreshToken = "", TokenType = "", RedirectURL = "http://127.0.0.1:8080/callback";
 private:
-	Server m_Server;
+	httplib::Server m_Server{};
 	std::thread m_ServerThread;
 	std::atomic<bool> m_ServerRunning{ false };
 
