@@ -59,7 +59,7 @@ public:
 private:
 	bool Authenticated = false;
 private:
-	std::string ClientId = "", ClientSecret = "", AccessToken = "", RefreshToken = "", TokenType = "", RedirectURL = "http://127.0.0.1:8080/callback";
+	std::string ClientId = "", ClientSecret = "", AccessToken = "", RefreshToken = "", TokenType = "", RedirectURL = "http://127.0.0.1:5173/callback";
 private:
 	httplib::Server m_Server{};
 	std::thread m_ServerThread;

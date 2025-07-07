@@ -188,7 +188,7 @@ void SpotifyAPI::RunAuthServer(std::string& code)
 	this->m_ServerThread = std::thread([this]()
 		{
 			Log::Info("Waiting for Spotify...");
-			this->m_Server.listen("127.0.0.1", 8080);
+			this->m_Server.listen("127.0.0.1", 5173);
 		}
 	);
 

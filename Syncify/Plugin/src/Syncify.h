@@ -21,11 +21,6 @@
 
 constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH);
 
-//enum DisplayModeEnum
-//{
-//	Simple, Compact, Extended
-//};
-
 class Syncify : public BakkesMod::Plugin::BakkesModPlugin, public SettingsWindowBase, public PluginWindowBase
 {
 #ifdef SYNCIFY_STATUSIMPL
@@ -53,16 +48,4 @@ private:
 	std::shared_ptr<SpotifyAPI> m_SpotifyApi;
 	std::unordered_map<uint8_t, std::unique_ptr<Overlay>> OverlayInstances{};
 	Overlay* CurrentDisplayMode{};
-//private:
-//	bool ShowOverlay = true, HideWhenNotPlaying = true;
-//	DisplayModeEnum CurrentDisplayMode = DisplayModeEnum::Compact;
-//	SizeMode CurrentSizeMode = SizeMode::Dynamic;
-//private:
-//	ImFont* FontLarge{};
-//	ImFont* FontRegular{};
-//private:
-//	float g_AnimSpeed = 40.0f, g_AnimWaitTime = 3.0f, g_Padding = 5.0f;
-//private:
-//	float ProgressBarColor[3] = { 0.f, 0.78f, 0.f };
-//	float BackgroundRounding = 0.f, ProgressBarRounding = 0.f;
 };
