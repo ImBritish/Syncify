@@ -32,7 +32,7 @@ A [BakkesMod](https://bakkesmod.com/) plugin that displays the current song you 
 1. Head over to [Spotify Developer Portal](https://developer.spotify.com/dashboard)
 2. Create a new "App"
 3. Fill out the app information as required. Name, Description
-4. The redirect URL is -> http://127.0.0.1:8080/callback
+4. The redirect URL is -> http://127.0.0.1:5173/callback
 5. Which API/SDKs are you planning to use? Select "Web API" and "Web Playback SDK"
 6. Agree to the TOS and press Save
 7. Copy the ClientId and Client Secret into the text fields in the plugins settings window
