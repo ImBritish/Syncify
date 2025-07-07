@@ -286,6 +286,10 @@ void Syncify::SaveData()
 	j["Options"]["HideWhenNotPlaying"] = Settings::HideWhenNotPlaying;
 	j["Options"]["ListeningOLS"] = *this->m_SpotifyApi->UseCustomStatus();
 
+	j["Options"]["OverlayWidth"] = Settings::SizeX;
+	j["Options"]["OverlayHeight"] = Settings::SizeY;
+	j["Options"]["OverlayOpacity"] = Settings::Opacity;
+
 	j["Style"]["DisplayMode"] = Settings::CurrentDisplayMode;
 	//j["Style"]["SizeMode"] = Settings::CurrentSize;
 
@@ -354,6 +358,15 @@ void Syncify::LoadData()
 
 		if (options.contains("ListeningOLS"))
 			this->m_SpotifyApi->SetCustomStatusEnabled(options["ListeningOLS"]);
+
+		if (options.contains("OverlayWidth"))
+			Settings::SizeX = options["OverlayWidth"];
+
+		if (options.contains("OverlayHeight"))
+			Settings::SizeY = options["OverlayHeight"];
+
+		if (options.contains("OverlayOpacity"))
+			Settings::Opacity = options["OverlayOpacity"];
 	}
 
 	if (data.contains("Style"))
