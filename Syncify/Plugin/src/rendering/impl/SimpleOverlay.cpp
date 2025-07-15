@@ -3,11 +3,11 @@
 
 void SimpleOverlay::RenderOverlay(const char* title, const char* artist, float progress, float duration)
 {
-	float titleSizeX = ImGui::CalcTextSize(std::string(("Now Playing: ") + std::string(title)).c_str()).x;
-	float artistSizeX = ImGui::CalcTextSize(std::string(("Artist: ") + std::string(artist)).c_str()).x;
+	float titleSizeX = ImGui::CalcTextSize(std::string("Now Playing: " + std::string(title)).c_str()).x;
+	float artistSizeX = ImGui::CalcTextSize(std::string("Artist: " + std::string(artist)).c_str()).x;
 
-	float finalSize = std::max((float)titleSizeX, (float)artistSizeX) + 20;
-	finalSize = std::max((float)finalSize, 175.f);
+	float finalSize = std::max(titleSizeX, artistSizeX) + 20;
+	finalSize = std::max(finalSize, 175.f);
 
 	ImGui::SetWindowSize({ finalSize, 50 });
 
