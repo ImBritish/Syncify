@@ -5,46 +5,140 @@
 
 #include <fstream>
 
+#include "rendering/impl/SimpleOverlay.h"
+
 BAKKESMOD_PLUGIN(Syncify, "Syncify", plugin_version, PLUGINTYPE_FREEPLAY)
 
 std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 
+const ImWchar ranges[] = {
+    // Basic Latin + Latin-1 Supplement
+    0x0020, 0x00FF,
+    
+    // Extended Latin
+    0x0100, 0x017F, // Latin Extended-A
+    0x0180, 0x024F, // Latin Extended-B
+    
+    // IPA Extensions
+    0x0250, 0x02AF,
+    
+    // Cyrillic
+    0x0400, 0x04FF, // Cyrillic
+    0x0500, 0x052F, // Cyrillic Supplement
+    0x2DE0, 0x2DFF, // Cyrillic Extended-A
+    0xA640, 0xA69F, // Cyrillic Extended-B
+    
+    // Greek and Coptic
+    0x0370, 0x03FF,
+    
+    // Arabic
+    0x0600, 0x06FF,
+    0x0750, 0x077F, // Arabic Supplement
+    0x08A0, 0x08FF, // Arabic Extended-A
+    0xFB50, 0xFDFF, // Arabic Presentation Forms-A
+    0xFE70, 0xFEFF, // Arabic Presentation Forms-B
+    
+    // Hebrew
+    0x0590, 0x05FF,
+    
+    // CJK
+    0x3000, 0x30FF, // CJK Symbols and Punctuation + Hiragana + Katakana
+    0x31F0, 0x31FF, // Katakana Phonetic Extensions
+    0x3200, 0x32FF, // Enclosed CJK Letters and Months
+    0x3400, 0x4DBF, // CJK Unified Ideographs Extension A
+    0x4E00, 0x9FFF, // CJK Unified Ideographs
+    0xF900, 0xFAFF, // CJK Compatibility Ideographs
+    
+    // Hangul
+    0xAC00, 0xD7AF, // Hangul Syllables
+    0x1100, 0x11FF, // Hangul Jamo
+    0x3130, 0x318F, // Hangul Compatibility Jamo
+    
+    // Indic scripts
+    0x0900, 0x097F, // Devanagari
+    0x0980, 0x09FF, // Bengali
+    0x0A00, 0x0A7F, // Gurmukhi
+    0x0A80, 0x0AFF, // Gujarati
+    0x0B00, 0x0B7F, // Oriya
+    0x0B80, 0x0BFF, // Tamil
+    0x0C00, 0x0C7F, // Telugu
+    0x0C80, 0x0CFF, // Kannada
+    0x0D00, 0x0D7F, // Malayalam
+    
+    // Thai
+    0x0E00, 0x0E7F,
+    
+    // Vietnamese
+    0x1EA0, 0x1EFF,
+    
+    // Symbols and Punctuation
+    0x2000, 0x206F, // General Punctuation
+    0x2070, 0x209F, // Superscripts and Subscripts
+    0x20A0, 0x20CF, // Currency Symbols
+    0x2100, 0x214F, // Letterlike Symbols
+    0x2150, 0x218F, // Number Forms
+    0x2190, 0x21FF, // Arrows
+    0x2200, 0x22FF, // Mathematical Operators
+    0x2300, 0x23FF, // Miscellaneous Technical
+    0x2400, 0x243F, // Control Pictures
+    0x2440, 0x245F, // Optical Character Recognition
+    0x2460, 0x24FF, // Enclosed Alphanumerics
+    0x2500, 0x257F, // Box Drawing
+    0x2580, 0x259F, // Block Elements
+    0x25A0, 0x25FF, // Geometric Shapes
+    0x2600, 0x26FF, // Miscellaneous Symbols
+    0x2700, 0x27BF, // Dingbats
+    0x27C0, 0x27EF, // Miscellaneous Mathematical Symbols-A
+    0x27F0, 0x27FF, // Supplemental Arrows-A
+    0x2800, 0x28FF, // Braille Patterns
+    
+    0 // Terminator
+};
+
 void Syncify::onLoad()
 {
-	_globalCvarManager = cvarManager;
+    _globalCvarManager = cvarManager;
 
-	this->m_SpotifyApi = std::make_shared<SpotifyAPI>();
+    this->m_SpotifyApi = std::make_shared<SpotifyAPI>();
 
-	this->LoadData();
+    this->LoadData();
 
-	this->OverlayInstances.emplace(std::make_pair(DisplayMode::Simple, std::make_unique<SimpleOverlay>()));
-	this->OverlayInstances.emplace(std::make_pair(DisplayMode::Compact, std::make_unique<CompactOverlay>()));
+    this->OverlayInstances.emplace(Simple, std::make_unique<SimpleOverlay>());
+    this->OverlayInstances.emplace(Compact, std::make_unique<CompactOverlay>());
 
-	this->CurrentDisplayMode = this->OverlayInstances.at(Settings::CurrentDisplayMode).get();
+    auto it = this->OverlayInstances.find(Settings::CurrentDisplayMode);
 
-	this->m_SpotifyApi->RefreshAccessToken(nullptr);
+    if (it != this->OverlayInstances.end())
+        this->CurrentDisplayMode = it->second.get();
+    else
+        this->CurrentDisplayMode = this->OverlayInstances.at(Simple).get(); // fallback
+
+    // Refresh Spotify access token (async)
+    this->m_SpotifyApi->RefreshAccessToken(nullptr);
 
 #ifdef SYNCIFY_STATUSIMPL
-	status = std::make_shared<StatusImpl>(gameWrapper, m_SpotifyApi);
-	status->ApplyStatus();
+    status = std::make_shared<StatusImpl>(gameWrapper, m_SpotifyApi);
+    status->ApplyStatus();
 #endif
 
-	auto gui = gameWrapper->GetGUIManager();
+    // Cache GUI manager pointer
+    auto gui = gameWrapper->GetGUIManager();
 
-	auto [codeLarge, fontLarge] = gui.LoadFont("FontLarge", "../../font.ttf", 18);
-	auto [codeRegular, fontRegular] = gui.LoadFont("FontRegular", "../../font.ttf", 14);
+	if (auto [codeLarge, fontLarge] = gui.LoadFont("FontLarge", "../../font.ttf", 18, nullptr, ranges); codeLarge == 2)
+        Font::FontLarge = fontLarge;
+    else
+        Log::Error("Failed to load FontLarge");
 
-	if (codeLarge == 2)
-		Font::FontLarge = fontLarge;
+    if (auto [codeRegular, fontRegular] = gui.LoadFont("FontRegular", "../../font.ttf", 14, nullptr, ranges); codeRegular == 2)
+        Font::FontRegular = fontRegular;
+    else
+        Log::Error("Failed to load FontRegular");
 
-	if (codeRegular == 2)
-		Font::FontRegular = fontRegular;
-
-	gameWrapper->RegisterDrawable([this](CanvasWrapper canvas)
-		{
-			this->RenderCanvas(canvas);
-		}
-	);
+    // Register canvas renderer
+    gameWrapper->RegisterDrawable([this](CanvasWrapper canvas)
+    {
+        this->RenderCanvas(canvas);
+    });
 }
 
 void Syncify::onUnload()
@@ -58,7 +152,7 @@ void Syncify::RenderSettings()
 {
 	if (!this->m_SpotifyApi->IsAuthenticated())
 	{
-		float titleWidth = (ImGui::GetCurrentWindow()->Size.x / 2) - (ImGui::CalcTextSize("Authentication").x / 2);
+		float titleWidth = ImGui::GetCurrentWindow()->Size.x / 2 - ImGui::CalcTextSize("Authentication").x / 2;
 
 		ImGui::SetCursorPosX(titleWidth);
 		ImGui::Text("Authentication");
@@ -77,7 +171,7 @@ void Syncify::RenderSettings()
 		return;
 	}
 
-	float settingsWidth = (ImGui::GetCurrentWindow()->Size.x / 2) - (ImGui::CalcTextSize("Settings").x / 2);
+	float settingsWidth = ImGui::GetCurrentWindow()->Size.x / 2 - ImGui::CalcTextSize("Settings").x / 2;
 
 	ImGui::SetCursorPosX(settingsWidth);
 	ImGui::Text("Settings");
@@ -115,7 +209,7 @@ void Syncify::RenderSettings()
 
 	ImGui::Separator();
 
-	float modeTitleWidth = (ImGui::GetCurrentWindow()->Size.x / 2) - (ImGui::CalcTextSize("Style").x / 2);
+	float modeTitleWidth = ImGui::GetCurrentWindow()->Size.x / 2 - ImGui::CalcTextSize("Style").x / 2;
 
 	ImGui::SetCursorPosX(modeTitleWidth);
 	ImGui::Text("Style");
@@ -126,7 +220,7 @@ void Syncify::RenderSettings()
 	{
 		for (uint8_t modeIndex = 0; modeIndex < this->OverlayInstances.size(); ++modeIndex)
 		{
-			if (modeIndex == DisplayMode::Extended) // Don't display extended since i dosent render anything yet
+			if (modeIndex == Extended) // Don't display extended since i dosent render anything yet
 				continue;
 
 			bool Selected = modeIndex == Settings::CurrentDisplayMode;
@@ -141,7 +235,7 @@ void Syncify::RenderSettings()
 		ImGui::EndCombo();
 	}
 
-	if (Settings::CurrentDisplayMode != DisplayMode::Simple)
+	if (Settings::CurrentDisplayMode != Simple)
 	{
 		ImGui::Separator();
 
@@ -175,7 +269,7 @@ void Syncify::Render()
 
 	ImGuiWindowFlags WindowFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
 
-	if (Settings::CurrentDisplayMode != DisplayMode::Simple)
+	if (Settings::CurrentDisplayMode != Simple)
 	{
 		WindowFlags += ImGuiWindowFlags_NoBackground;
 	}
@@ -203,8 +297,6 @@ void Syncify::RenderWindow()
 
 	if (!this->m_SpotifyApi)
 		return;
-
-	bool ShowControls = gameWrapper->IsCursorVisible() == 2;
 
 	if (!Font::FontLarge)
 	{
@@ -262,7 +354,6 @@ void Syncify::RenderCanvas(CanvasWrapper& canvas)
 	if (this->isWindowOpen_ && Settings::HideWhenNotPlaying && this->bNotPlaying()) // Window is open but needs closing
 	{
 		cvarManager->executeCommand("closemenu " + GetMenuName());
-		return;
 	}
 }
 
@@ -270,9 +361,9 @@ void Syncify::SaveData()
 {
 	std::filesystem::path latestSavePath = gameWrapper->GetDataFolder() / "Syncify" / "LatestSave.json";
 
-	if (!std::filesystem::exists(latestSavePath.parent_path()))
+	if (!exists(latestSavePath.parent_path()))
 	{
-		std::filesystem::create_directories(latestSavePath.parent_path());
+		create_directories(latestSavePath.parent_path());
 	}
 
 	nlohmann::json j;
@@ -321,7 +412,7 @@ void Syncify::LoadData()
 
 	nlohmann::json saveData;
 
-	if (!std::filesystem::exists(latestSavePath))
+	if (!exists(latestSavePath))
 		return;
 
 	std::ifstream inFile(latestSavePath);

@@ -17,10 +17,10 @@ public:
 	void Authenticate();
 	void FetchMediaData();
 	void ForceServerClose();
-	void RefreshAccessToken(std::function<void()> onRefreshed);
+	void RefreshAccessToken(const std::function<void()>& onRefreshed);
 
-	void SetTitle(std::string title) { this->Title = title; }
-	void SetArtist(std::string artist) { this->Artist = artist; }
+	void SetTitle(const std::string& title) { this->Title = title; }
+	void SetArtist(const std::string& artist) { this->Artist = artist; }
 
 	void SetCustomStatusEnabled(bool state) { this->CustomStatus = state; }
 
@@ -28,7 +28,7 @@ public:
 	void SetClientSecret(const std::string& secret);
 	void SetAccessToken(const std::string& accessToken);
 	void SetRefreshToken(const std::string& refreshToken);
-public:
+
 	bool IsAuthenticated() { return this->Authenticated; }
 
 	std::string* GetTitle() { return &this->Title; }
@@ -49,29 +49,32 @@ public:
 	std::string* GetClientSecret() { return &this->ClientSecret; }
 	std::string* GetAccessToken() { return &this->AccessToken; }
 	std::string* GetRefreshToken() { return &this->RefreshToken; }
+
 private:
 	void ExchangeCode(const std::string& code);
 	void RunAuthServer(std::string& code);
 
 	std::string Encode(const std::string& url);
+
 public:
 	bool CustomStatus = false;
+
 private:
 	bool Authenticated = false;
-private:
-	std::string ClientId = "", ClientSecret = "", AccessToken = "", RefreshToken = "", TokenType = "", RedirectURL = "http://127.0.0.1:5173/callback";
-private:
-	httplib::Server m_Server{};
+
+std::string ClientId, ClientSecret, AccessToken, RefreshToken, TokenType, RedirectURL = "http://127.0.0.1:5173/callback";
+
+httplib::Server m_Server{};
 	std::thread m_ServerThread;
-	std::atomic<bool> m_ServerRunning{ false };
+	std::atomic<bool> m_ServerRunning{false};
 
 	std::mutex m_Mutex;
 	std::condition_variable m_CondVar;
 	bool m_CodeReceived = false;
-private:
-	bool CurrentlyPlaying = false, Explicit = false, Local = false;
+
+bool CurrentlyPlaying = false, Explicit = false, Local = false;
 	std::string Title = "Not Playing", Artist = "Not Playing";
 	long Progress = 0, Duration = 0, Timestamp = 0;
-private:
-	std::chrono::steady_clock::time_point TokenExpiry;
+
+std::chrono::steady_clock::time_point TokenExpiry;
 };
