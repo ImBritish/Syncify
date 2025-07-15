@@ -11,7 +11,7 @@ void SimpleOverlay::RenderOverlay(const char* title, const char* artist, float p
 	const ImVec2 MaxBounds = {windowPos.x + windowSize.x, windowPos.y + windowSize.y};
 
 	// Set window size once
-	ImGui::SetWindowSize({Settings::SizeX, 50.f});
+	ImGui::SetWindowSize({Settings::SizeX, Settings::SizeY - 10.f});
 
 	// Calculate text sizes once
 	const auto titleSizeX = Font::FontLarge ? this->CalcTextSize(std::string("Now Playing: " + std::string(title)).c_str(), Font::FontLarge).x : 0.0f;
