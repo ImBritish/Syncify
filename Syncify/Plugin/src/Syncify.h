@@ -2,26 +2,21 @@
 
 #include <Plugin/external/bakkes/gui/GuiBase.h>
 #include <bakkesmod/plugin/bakkesmodplugin.h>
-#include <bakkesmod/plugin/pluginwindow.h>
-#include <bakkesmod/plugin/PluginSettingsWindow.h>
 
 #include "version.h"
-
-#include "rendering/settings/Globals.h"
 
 #include "spotify/SpotifyAPI.h"
 
 // Status Implementation
 #include "hidden/StatusImpl.h"
 
-#include "rendering/impl/SimpleOverlay.h"
 #include "rendering/impl/CompactOverlay.h"
 
 #include <memory>
 
 constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH);
 
-class Syncify : public BakkesMod::Plugin::BakkesModPlugin, public SettingsWindowBase, public PluginWindowBase
+class Syncify final : public BakkesMod::Plugin::BakkesModPlugin, public SettingsWindowBase, public PluginWindowBase
 {
 #ifdef SYNCIFY_STATUSIMPL
 public:
@@ -44,7 +39,7 @@ public:
 	void LoadData();
 private:
 	const char* GetDisplayModeName(uint8_t displayMode);
-private:
+
 	std::shared_ptr<SpotifyAPI> m_SpotifyApi;
 	std::unordered_map<uint8_t, std::unique_ptr<Overlay>> OverlayInstances{};
 	Overlay* CurrentDisplayMode{};

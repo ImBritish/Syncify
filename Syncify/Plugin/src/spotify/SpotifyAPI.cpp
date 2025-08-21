@@ -8,7 +8,7 @@
 
 void SpotifyAPI::Authenticate()
 {
-	std::thread([this]() 
+	std::thread([this]
 		{
 			std::string auth_url = std::format(
 				"https://accounts.spotify.com/authorize?response_type=code&client_id={}&redirect_uri={}&scope={}",
@@ -17,7 +17,7 @@ void SpotifyAPI::Authenticate()
 				this->Encode("user-read-playback-state user-modify-playback-state user-read-currently-playing")
 			);
 
-			ShellExecuteA(NULL, "open", auth_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+			ShellExecuteA(nullptr, "open", auth_url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 
 			std::string code;
 			this->RunAuthServer(code);
@@ -45,7 +45,7 @@ void SpotifyAPI::FetchMediaData()
 		{ "Authorization", std::string("Bearer " + AccessToken) }
 	};
 
-	HttpWrapper::SendCurlRequest(request, [this](int code, std::string result)
+	HttpWrapper::SendCurlRequest(request, [this](int code, const std::string& result)
 		{
 			switch (code)
 			{
@@ -214,7 +214,7 @@ void SpotifyAPI::ForceServerClose()
 		this->m_ServerThread.join();
 }
 
-void SpotifyAPI::RefreshAccessToken(std::function<void()> onRefreshed)
+void SpotifyAPI::RefreshAccessToken(const std::function<void()>& onRefreshed)
 {
 	if (this->RefreshToken.empty())
 		return;
@@ -231,7 +231,7 @@ void SpotifyAPI::RefreshAccessToken(std::function<void()> onRefreshed)
 		{ "Content-Type", "application/x-www-form-urlencoded" }
 	};
 
-	HttpWrapper::SendCurlRequest(request, [this, onRefreshed](int code, std::string result)
+	HttpWrapper::SendCurlRequest(request, [this, onRefreshed](int code, const std::string& result)
 		{
 			try
 			{
