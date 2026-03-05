@@ -14,6 +14,7 @@ namespace Settings
 
 	inline float Padding = 5.0f;
 
+	inline float BackgroundColor[3]{ 0.14f, 0.14f, 0.14f };
 	inline float DurationBarColor[3]{ 0.f, 0.78f, 0.f };
 
 	inline float BackgroundRounding = 0.0f;

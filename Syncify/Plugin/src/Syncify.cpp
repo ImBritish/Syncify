@@ -160,6 +160,7 @@ void Syncify::RenderSettings()
 		ImGui::Separator();
 
 		ImGui::SliderFloat("Background Rounding", &Settings::BackgroundRounding, 0.f, 14.f, "%.1f");
+		ImGui::ColorEdit3("Background Color", Settings::BackgroundColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoInputs);
 
 		ImGui::Separator();
 
@@ -314,6 +315,9 @@ void Syncify::SaveData()
 	j["Style"]["DisplayMode"] = Settings::CurrentDisplayMode;
 	//j["Style"]["SizeMode"] = Settings::CurrentSize;
 
+	j["Style"]["Background"]["Color"]["R"] = Settings::BackgroundColor[0];
+	j["Style"]["Background"]["Color"]["G"] = Settings::BackgroundColor[1];
+	j["Style"]["Background"]["Color"]["B"] = Settings::BackgroundColor[2];
 	j["Style"]["Rounding"] = Settings::BackgroundRounding;
 
 	j["Style"]["ProgressBar"]["Color"]["R"] = Settings::DurationBarColor[0];
@@ -396,6 +400,20 @@ void Syncify::LoadData()
 	if (data.contains("Style"))
 	{
 		nlohmann::json style = data["Style"];
+
+		if (style.contains("Background"))
+		{
+			nlohmann::json progressBar = style["Background"];
+
+			if (progressBar.contains("Color"))
+			{
+				nlohmann::json bgColor = progressBar["Color"];
+
+				Settings::BackgroundColor[0] = bgColor["R"];
+				Settings::BackgroundColor[1] = bgColor["G"];
+				Settings::BackgroundColor[2] = bgColor["B"];
+			}
+		}
 
 		if (style.contains("Rounding"))
 			Settings::BackgroundRounding = style["Rounding"];

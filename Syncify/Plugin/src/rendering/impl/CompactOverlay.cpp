@@ -24,7 +24,7 @@ void CompactOverlay::RenderOverlay(const char* title, const char* artist, float 
 	float artistOverflow = artistSizeX - availableWidth;
 
 	ImGui::GetBackgroundDrawList()->AddRectFilled(
-		MinBounds, MaxBounds, ImColor(35, 35, 35, Settings::Opacity), Settings::BackgroundRounding
+		MinBounds, MaxBounds, ImColor(Settings::BackgroundColor[0], Settings::BackgroundColor[1], Settings::BackgroundColor[2], Settings::Opacity / 255.f), Settings::BackgroundRounding
 	);
 
 	if (Font::FontLarge != nullptr)
