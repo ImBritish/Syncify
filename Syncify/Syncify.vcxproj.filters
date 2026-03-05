@@ -90,9 +90,6 @@
     <ClCompile Include="Plugin\src\rendering\Overlay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Plugin\src\rendering\impl\SimpleOverlay.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Plugin\src\rendering\impl\CompactOverlay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -168,9 +165,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Plugin\src\rendering\Overlay.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Plugin\src\rendering\impl\SimpleOverlay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Plugin\src\rendering\impl\CompactOverlay.h">

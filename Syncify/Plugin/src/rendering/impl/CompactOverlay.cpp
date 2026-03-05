@@ -1,162 +1,220 @@
 #include "pch.h"
 #include "CompactOverlay.h"
 
-void CompactOverlay::RenderOverlay(const char* title, const char* artist, float progress, float duration)
+#include <algorithm>
+#include <cmath>
+#include <cfloat>
+#include <string>
+
+namespace
 {
+	std::string FormatTimeShort(int totalSeconds)
+	{
+		const int clamped = std::max(0, totalSeconds);
+		const int hours = clamped / 3600;
+		const int minutes = (clamped % 3600) / 60;
+		const int seconds = clamped % 60;
+
+		if (hours > 0)
+			return std::format("{}:{:02d}:{:02d}", hours, minutes, seconds);
+
+		return std::format("{}:{:02d}", minutes, seconds);
+	}
+}
+
+void CompactOverlay::RenderOverlay(const char* title, const char* artist, float progress, float duration, void* albumCoverTexture)
+{
+	const float scale = std::max(0.5f, Settings::GlobalScale);
+	const float padding = Settings::Padding * scale;
+	const float albumPadding = std::max(0.0f, Settings::AlbumCoverPadding * scale);
+	const float timeTextOffsetY = Settings::TimeTextOffsetY * scale;
+	const float barHeight = std::max(1.0f, Settings::ProgressBarHeight * scale);
+
+	ImGui::SetWindowSize({ Settings::SizeX * scale, Settings::SizeY * scale });
+
 	ImVec2 MinBounds = ImVec2(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y);
 	ImVec2 MaxBounds = ImVec2(ImGui::GetWindowPos().x + ImGui::GetWindowSize().x, ImGui::GetWindowPos().y + ImGui::GetWindowSize().y);
-
-	float titleSizeX = this->CalcTextSize(title, Font::FontLarge).x;
-
-	float artistSizeX = this->CalcTextSize(artist, Font::FontRegular).x;
-
-	//float finalSize = std::min(225.f, std::max(std::max((float)titleSizeX, (float)artistSizeX) + 15, 175.f));
-	float finalSize = Settings::SizeX;
-
-	ImGui::SetWindowSize({ finalSize, Settings::SizeY });
-
 	ImDrawList* drawList = ImGui::GetWindowDrawList();
+	ImGuiStyle& style = ImGui::GetStyle();
+	const ImDrawListFlags oldDrawFlags = drawList->Flags;
+	const float oldCircleSegError = style.CircleSegmentMaxError;
+	drawList->Flags |= ImDrawListFlags_AntiAliasedFill;
+	drawList->Flags |= ImDrawListFlags_AntiAliasedLines;
+	style.CircleSegmentMaxError = std::min(oldCircleSegError, 0.60f);
 
-	float availableWidth = MaxBounds.x - MinBounds.x - 10.0f;
-	ImVec2 titleTextPos = ImVec2(MinBounds.x + 5.0f, MinBounds.y + 8.0f);
-	ImVec2 artistTextPos = ImVec2(MinBounds.x + 5.0f, MinBounds.y + 30.0f);
-	float titleOverflow = titleSizeX - availableWidth;
-	float artistOverflow = artistSizeX - availableWidth;
+	ImFont* titleFont = Font::FontLarge ? Font::FontLarge : ImGui::GetFont();
+	ImFont* artistFont = Font::FontRegular ? Font::FontRegular : ImGui::GetFont();
+	const float titleFontSize = titleFont->FontSize * scale;
+	const float artistFontSize = artistFont->FontSize * scale;
 
-	ImGui::GetBackgroundDrawList()->AddRectFilled(
-		MinBounds, MaxBounds, ImColor(Settings::BackgroundColor[0], Settings::BackgroundColor[1], Settings::BackgroundColor[2], Settings::Opacity / 255.f), Settings::BackgroundRounding
-	);
+	auto toColor = [](const float color[3], int alpha)
+		{
+			const int r = static_cast<int>(std::clamp(color[0], 0.0f, 1.0f) * 255.0f);
+			const int g = static_cast<int>(std::clamp(color[1], 0.0f, 1.0f) * 255.0f);
+			const int b = static_cast<int>(std::clamp(color[2], 0.0f, 1.0f) * 255.0f);
+			return IM_COL32(r, g, b, std::clamp(alpha, 0, 255));
+		};
 
-	if (Font::FontLarge != nullptr)
-		ImGui::PushFont(Font::FontLarge);
+	auto calcWidth = [](ImFont* font, float size, const char* text)
+		{
+			return font->CalcTextSizeA(size, FLT_MAX, -1.0f, text).x;
+		};
 
-	if (titleOverflow <= 0.0f)
+	const bool showAlbumCover = Settings::CompactShowAlbumCover && albumCoverTexture != nullptr;
+	const float yPos = MaxBounds.y - barHeight - padding;
+	const float overlayHeight = MaxBounds.y - MinBounds.y;
+
+	float coverRegionSize = 0.0f;
+	float coverSize = 0.0f;
+	float coverMinX = 0.0f;
+	float coverMinY = 0.0f;
+
+	if (showAlbumCover)
 	{
-		drawList->AddText(titleTextPos, IM_COL32(255, 255, 255, Settings::Opacity), title);
-	}
-	else
-	{
-		float t = ImGui::GetTime();
-
-		float scrollDistance = titleOverflow * 2.0f;
-
-		float cycleTime = scrollDistance / Settings::AnimationSpeed + 2.0f * Settings::AnimationWaitTime;
-
-		float cyclePos = fmod(t, cycleTime);
-
-		float offset = 0.0f;
-		if (cyclePos < Settings::AnimationWaitTime)
-		{
-			offset = 0.0f;
-		}
-		else if (cyclePos < Settings::AnimationWaitTime + (titleOverflow / Settings::AnimationSpeed))
-		{
-			float scrollT = cyclePos - Settings::AnimationWaitTime;
-			offset = scrollT * Settings::AnimationSpeed;
-		}
-		else if (cyclePos < Settings::AnimationWaitTime + (titleOverflow / Settings::AnimationSpeed) + Settings::AnimationWaitTime)
-		{
-			offset = titleOverflow;
-		}
-		else
-		{
-			float scrollT = cyclePos - Settings::AnimationWaitTime - (titleOverflow / Settings::AnimationSpeed) - Settings::AnimationWaitTime;
-			offset = titleOverflow - scrollT * Settings::AnimationSpeed;
-		}
-
-		ImVec2 scrollPos = ImVec2(titleTextPos.x - offset, titleTextPos.y);
-		drawList->AddText(scrollPos, IM_COL32(255, 255, 255, Settings::Opacity), title);
+		coverRegionSize = std::max(0.0f, overlayHeight - (albumPadding * 2.0f));
+		coverSize = coverRegionSize * std::clamp(Settings::AlbumCoverScale, 0.1f, 1.0f);
+		const float centerOffset = (coverRegionSize - coverSize) * 0.5f;
+		coverMinX = MinBounds.x + albumPadding + centerOffset;
+		coverMinY = MinBounds.y + albumPadding + centerOffset;
 	}
 
-	if (Font::FontLarge != nullptr)
-		ImGui::PopFont();
+	const float textBaseX = showAlbumCover ? MinBounds.x + albumPadding + coverRegionSize + padding : MinBounds.x + padding;
+	const float availableWidth = std::max(0.0f, MaxBounds.x - textBaseX - padding);
+	const ImVec2 titleTextPos = ImVec2(textBaseX + Settings::TitleXOffset * scale, MinBounds.y + Settings::TitleYOffset * scale);
+	const ImVec2 artistTextPos = ImVec2(textBaseX + Settings::AuthorXOffset * scale, MinBounds.y + Settings::AuthorYOffset * scale);
 
-	if (Font::FontRegular != nullptr)
-		ImGui::PushFont(Font::FontRegular);
+	const float titleSizeX = calcWidth(titleFont, titleFontSize, title);
+	const float artistSizeX = calcWidth(artistFont, artistFontSize, artist);
+	const float titleOverflow = titleSizeX - availableWidth;
+	const float artistOverflow = artistSizeX - availableWidth;
 
-	if (artistOverflow <= 0) {
-		drawList->AddText(
-			ImVec2(MinBounds.x + 5, MinBounds.y + 30), ImColor(255, 255, 255, Settings::Opacity), artist
-		);
-	}
-	else {
-		float tA = ImGui::GetTime();
-
-		float scrollDistanceA = artistOverflow * 2.0f;
-
-		float cycleTimeA = scrollDistanceA / Settings::AnimationSpeed + 2.0f * Settings::AnimationWaitTime;
-
-		float cyclePosA = fmod(tA, cycleTimeA);
-
-		float offsetA = 0.0f;
-		if (cyclePosA < Settings::AnimationWaitTime)
-		{
-			offsetA = 0.0f;
-		}
-		else if (cyclePosA < Settings::AnimationWaitTime + (artistOverflow / Settings::AnimationSpeed))
-		{
-			float scrollT = cyclePosA - Settings::AnimationWaitTime;
-			offsetA = scrollT * Settings::AnimationSpeed;
-		}
-		else if (cyclePosA < Settings::AnimationWaitTime + (artistOverflow / Settings::AnimationSpeed) + Settings::AnimationWaitTime)
-		{
-			offsetA = artistOverflow;
-		}
-		else
-		{
-			float scrollA = cyclePosA - Settings::AnimationWaitTime - (artistOverflow / Settings::AnimationSpeed) - Settings::AnimationWaitTime;
-			offsetA = artistOverflow - scrollA * Settings::AnimationSpeed;
-		}
-
-		ImVec2 scrollPosA = ImVec2(artistTextPos.x - offsetA, artistTextPos.y);
-		drawList->AddText(scrollPosA, IM_COL32(255, 255, 255, Settings::Opacity), artist);
-	}
-
-	if (Font::FontRegular != nullptr)
-		ImGui::PopFont();
+	const float cornerInset = 1.0f;
+	const ImVec2 panelMin = ImVec2(MinBounds.x + cornerInset, MinBounds.y + cornerInset);
+	const ImVec2 panelMax = ImVec2(MaxBounds.x - cornerInset, MaxBounds.y - cornerInset);
+	const float panelW = std::max(0.0f, panelMax.x - panelMin.x);
+	const float panelH = std::max(0.0f, panelMax.y - panelMin.y);
+	const float panelRoundLimit = std::max(0.0f, (std::min(panelW, panelH) * 0.5f) - 1.0f);
+	const float panelRounding = std::clamp(Settings::BackgroundRounding * scale, 0.0f, panelRoundLimit);
 
 	drawList->AddRectFilled(
-		ImVec2(MinBounds.x + 5, MaxBounds.y - 10), ImVec2(MaxBounds.x - 5, MaxBounds.y - 5), ImColor(55, 55, 55, Settings::Opacity), Settings::DurationBarRounding
+		panelMin,
+		panelMax,
+		toColor(Settings::BackgroundColor, Settings::BackgroundAlpha),
+		panelRounding
 	);
 
-	ImVec2 min = MinBounds;
-	ImVec2 max = MaxBounds;
+	if (showAlbumCover)
+	{
+		drawList->AddImageRounded(
+			static_cast<ImTextureID>(albumCoverTexture),
+			ImVec2(coverMinX, coverMinY),
+			ImVec2(coverMinX + coverSize, coverMinY + coverSize),
+			ImVec2(0, 0),
+			ImVec2(1, 1),
+			IM_COL32(255, 255, 255, std::clamp(Settings::AlbumCoverAlpha, 0, 255)),
+			Settings::AlbumCoverRounding * scale
+		);
+	}
+
+	const ImVec2 textClipMin(textBaseX, MinBounds.y);
+	const ImVec2 textClipMax(MaxBounds.x - padding, yPos - 1.0f);
+	drawList->PushClipRect(textClipMin, textClipMax, true);
+
+	auto drawScrollingText = [&](const char* text, const ImVec2& basePos, ImFont* font, float fontSize, float overflow, ImU32 color)
+		{
+			if (overflow <= 0.0f)
+			{
+				drawList->AddText(font, fontSize, basePos, color, text);
+				return;
+			}
+
+			const float waitTime = std::max(0.0f, Settings::AnimationWaitTime);
+			const float speed = std::max(1.0f, Settings::AnimationSpeed * scale);
+			const float oneWay = overflow / speed;
+			const float cycleTime = oneWay * 2.0f + waitTime * 2.0f;
+			const float t = std::fmod(static_cast<float>(ImGui::GetTime()), std::max(0.01f, cycleTime));
+
+			float offset = 0.0f;
+			if (t < waitTime)
+			{
+				offset = 0.0f;
+			}
+			else if (t < waitTime + oneWay)
+			{
+				offset = (t - waitTime) * speed;
+			}
+			else if (t < waitTime + oneWay + waitTime)
+			{
+				offset = overflow;
+			}
+			else
+			{
+				offset = overflow - (t - (waitTime + oneWay + waitTime)) * speed;
+			}
+
+			drawList->AddText(font, fontSize, ImVec2(basePos.x - offset, basePos.y), color, text);
+		};
+
+	drawScrollingText(title, titleTextPos, titleFont, titleFontSize, titleOverflow, toColor(Settings::TitleColor, Settings::TitleAlpha));
+	drawScrollingText(artist, artistTextPos, artistFont, artistFontSize, artistOverflow, toColor(Settings::ArtistColor, Settings::ArtistAlpha));
+	drawList->PopClipRect();
 
 	static float animationProgress = 0.0f;
+	const float barStartX = textBaseX;
+	const float barEndX = std::max(barStartX, MaxBounds.x - padding);
+	const float barWidth = std::max(0.0f, barEndX - barStartX);
+	const float targetProgress = std::clamp((duration > 0.0f) ? progress / duration : 0.0f, 0.0f, 1.0f);
 
-	float barHeight = 5.0f;
-	float yPos = max.y - barHeight - Settings::Padding;
+	const float deltaTime = ImGui::GetIO().DeltaTime;
+	const float progressAnimSpeed = std::max(0.01f, Settings::ProgressAnimationSpeed);
+	animationProgress = ImLerp(animationProgress, targetProgress, 1.0f - std::exp(-progressAnimSpeed * deltaTime));
 
-	float barStartX = min.x + Settings::Padding;
-	float barEndX = max.x - Settings::Padding;
-
-	float barWidth = barEndX - barStartX;
-
-	float targetProgress = (duration > 0.0f) ? progress / duration : 0.0f;
-
-	float progressFraction = (duration > 0.0f) ? progress / duration : 0.0f;
-	progressFraction = std::clamp(progressFraction, 0.0f, 1.0f);
-
-	float deltaTime = ImGui::GetIO().DeltaTime;
-	float animationSpeed = 10.0f;
-
-	animationProgress = ImLerp(animationProgress, targetProgress, 1.0f - std::exp(-animationSpeed * deltaTime));
+	drawList->AddRectFilled(
+		ImVec2(barStartX, yPos),
+		ImVec2(barEndX, yPos + barHeight),
+		toColor(Settings::DurationBarBackgroundColor, Settings::ProgressBarBackgroundAlpha),
+		Settings::DurationBarRounding * scale
+	);
 
 	drawList->AddRectFilled(
 		ImVec2(barStartX, yPos),
 		ImVec2(barStartX + barWidth * animationProgress, yPos + barHeight),
-		ImColor(Settings::DurationBarColor[0], Settings::DurationBarColor[1], Settings::DurationBarColor[2], Settings::Opacity / 255.f), Settings::DurationBarRounding
+		toColor(Settings::DurationBarColor, Settings::ProgressBarAlpha),
+		Settings::DurationBarRounding * scale
 	);
 
-	int totalSec = static_cast<int>(duration / 1000.0f);
-	int progressSec = static_cast<int>(progress / 1000.0f);
+	if (Settings::ShowTimeText)
+	{
+		const int totalSec = std::max(0, static_cast<int>(duration / 1000.0f));
+		const int progressSec = std::clamp(static_cast<int>(progress / 1000.0f), 0, totalSec);
+		const int remainingSec = std::max(0, totalSec - progressSec);
 
-	std::string timeStr = std::format("{:01d}:{:02d} / {:01d}:{:02d}",
-		progressSec / 60, progressSec % 60,
-		totalSec / 60, totalSec % 60
-	);
+		std::string timeStr;
+		if (Settings::OnlyShowTimeLeft)
+		{
+			timeStr = std::format("-{}", FormatTimeShort(remainingSec));
+		}
+		else
+		{
+			if (Settings::ShowElapsedTime)
+				timeStr = FormatTimeShort(progressSec);
 
-	ImVec2 textPos = ImVec2(barEndX - this->CalcTextSize(timeStr.c_str()).x, yPos - 16);
+			if (Settings::ShowTotalDuration)
+			{
+				if (!timeStr.empty())
+					timeStr += " / ";
+				timeStr += FormatTimeShort(totalSec);
+			}
+		}
 
-	drawList->AddText(textPos, IM_COL32(255, 255, 255, std::clamp(Settings::Opacity, 0, 180)), timeStr.c_str());
+		if (!timeStr.empty())
+		{
+			const float timeWidth = calcWidth(artistFont, artistFontSize, timeStr.c_str());
+			const ImVec2 textPos = ImVec2(barEndX - timeWidth, yPos - timeTextOffsetY);
+			drawList->AddText(artistFont, artistFontSize, textPos, toColor(Settings::TimeColor, Settings::TimeAlpha), timeStr.c_str());
+		}
+	}
+
+	style.CircleSegmentMaxError = oldCircleSegError;
+	drawList->Flags = oldDrawFlags;
 }

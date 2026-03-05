@@ -40,6 +40,7 @@ public:
 
 	std::string* GetTitle() { return &this->Title; }
 	std::string* GetArtist() { return &this->Artist; }
+	const std::string& GetAlbumCoverUrl() const { return this->AlbumCoverUrl; }
 
 	bool IsPlaying() { return this->CurrentlyPlaying; }
 	bool IsExplicit() { return this->Explicit; }
@@ -78,6 +79,7 @@ private:
 
 	bool CurrentlyPlaying = false, Explicit = false, Local = false;
 	std::string Title = "Not Playing", Artist = "Not Playing";
+	std::string AlbumCoverUrl{};
 	long Progress = 0, Duration = 0, Timestamp = 0;
 
 	std::chrono::system_clock::time_point TokenExpiry{};

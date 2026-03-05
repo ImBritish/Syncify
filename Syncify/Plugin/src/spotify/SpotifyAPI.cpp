@@ -32,6 +32,7 @@ void SpotifyAPI::Disconnect()
 
 	this->Title = "Not Playing";
 	this->Artist = "Not Playing";
+	this->AlbumCoverUrl.clear();
 	this->CurrentlyPlaying = false;
 	this->Progress = 0;
 	this->Duration = 0;
@@ -78,6 +79,7 @@ void SpotifyAPI::FetchMediaDataInternal(bool allowRefreshRetry)
 			case 429: {
 				this->Title = "Rate Limited";
 				this->Artist = "Code: 429";
+				this->AlbumCoverUrl.clear();
 				return;
 			}
 			case 403: {
@@ -93,6 +95,7 @@ void SpotifyAPI::FetchMediaDataInternal(bool allowRefreshRetry)
 
 				this->Title = "Bad OAuth request";
 				this->Artist = "Code: 403";
+				this->AlbumCoverUrl.clear();
 				return;
 			}
 			case 401: {
@@ -108,11 +111,13 @@ void SpotifyAPI::FetchMediaDataInternal(bool allowRefreshRetry)
 
 				this->Title = "Bad OAuth request";
 				this->Artist = "Code: 401";
+				this->AlbumCoverUrl.clear();
 				return;
 			}
 			case 204: {
 				this->Title = "Not Playing";
 				this->Artist = "Not Playing";
+				this->AlbumCoverUrl.clear();
 
 				this->Progress = 0;
 				this->Duration = 0;
@@ -160,11 +165,30 @@ void SpotifyAPI::FetchMediaDataInternal(bool allowRefreshRetry)
 				}
 
 				this->Artist = oss.str();
+
+				this->AlbumCoverUrl.clear();
+				if (item.contains("album"))
+				{
+					const auto& album = item["album"];
+					if (album.contains("images") && album["images"].is_array())
+					{
+						const auto& images = album["images"];
+						for (const auto& image : images)
+						{
+							if (image.contains("url"))
+							{
+								this->AlbumCoverUrl = image["url"].get<std::string>();
+								break;
+							}
+						}
+					}
+				}
 			}
 			catch (const std::exception& e)
 			{
 				Log::Info("Code: {}", code);
 				Log::Error(e.what());
+				this->AlbumCoverUrl.clear();
 			}
 		}
 	);

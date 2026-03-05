@@ -2,6 +2,7 @@
 
 #include <Plugin/external/bakkes/gui/GuiBase.h>
 #include <bakkesmod/plugin/bakkesmodplugin.h>
+#include <bakkesmod/wrappers/ImageWrapper.h>
 
 #include "version.h"
 
@@ -10,10 +11,12 @@
 // Status Implementation
 #include "hidden/StatusImpl.h"
 
-#include "rendering/impl/SimpleOverlay.h"
 #include "rendering/impl/CompactOverlay.h"
 
 #include <memory>
+#include <mutex>
+#include <atomic>
+#include <nlohmann/json.hpp>
 
 constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH);
 
@@ -40,8 +43,19 @@ public:
 	void LoadData();
 private:
 	const char* GetDisplayModeName(uint8_t displayMode);
+	void LoadDataV2(const nlohmann::json& data);
+	void LoadDataLegacy(const nlohmann::json& data);
+	void UpdateAlbumCoverTexture();
 private:
 	std::shared_ptr<SpotifyAPI> m_SpotifyApi;
 	std::unordered_map<uint8_t, std::unique_ptr<Overlay>> OverlayInstances{};
 	Overlay* CurrentDisplayMode{};
+
+	std::unique_ptr<ImageWrapper> m_AlbumCoverImage;
+	std::string m_AlbumCoverUrl{};
+	std::wstring m_PendingAlbumCoverPath{};
+	std::string m_PendingAlbumCoverUrl{};
+	std::mutex m_AlbumCoverMutex;
+	std::atomic<bool> m_AlbumCoverDownloadInFlight{ false };
+	std::atomic<bool> m_HasPendingAlbumCover{ false };
 };

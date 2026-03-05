@@ -4,5 +4,5 @@
 class CompactOverlay : public Overlay
 {
 public:
-	void RenderOverlay(const char* title, const char* artist, float progress, float duration) override;
+	void RenderOverlay(const char* title, const char* artist, float progress, float duration, void* albumCoverTexture = nullptr) override;
 };

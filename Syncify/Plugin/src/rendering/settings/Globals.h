@@ -4,31 +4,63 @@
 
 enum DisplayMode : uint8_t
 {
-	Simple = 0, Compact = 1, Extended = 2
+	Compact = 0
 };
 
 namespace Settings 
 {
 	inline float AnimationSpeed = 40.f;
 	inline float AnimationWaitTime = 3.0f;
+	inline float ProgressAnimationSpeed = 10.0f;
 
 	inline float Padding = 5.0f;
+	inline float AlbumCoverPadding = 4.0f;
+	inline float AlbumCoverScale = 1.0f;
+	inline float TitleXOffset = 0.0f;
+	inline float TitleYOffset = 8.0f;
+	inline float AuthorXOffset = 0.0f;
+	inline float AuthorYOffset = 30.0f;
+	inline float TimeTextOffsetY = 16.0f;
+	inline float ProgressBarHeight = 5.0f;
 
 	inline float BackgroundColor[3]{ 0.14f, 0.14f, 0.14f };
 	inline float DurationBarColor[3]{ 0.f, 0.78f, 0.f };
+	inline float DurationBarBackgroundColor[3]{ 0.22f, 0.22f, 0.22f };
+	inline float TitleColor[3]{ 1.0f, 1.0f, 1.0f };
+	inline float ArtistColor[3]{ 0.90f, 0.90f, 0.90f };
+	inline float TimeColor[3]{ 1.0f, 1.0f, 1.0f };
+	inline float BorderColor[3]{ 0.0f, 0.0f, 0.0f };
 
 	inline float BackgroundRounding = 0.0f;
 	inline float DurationBarRounding = 0.0f;
+	inline float BorderThickness = 0.0f;
+	inline float AlbumCoverRounding = 4.0f;
+
+	inline int BackgroundAlpha = 255;
+	inline bool BorderEnabled = true;
+	inline int BorderAlpha = 255;
+	inline int AlbumCoverAlpha = 255;
+	inline int TitleAlpha = 255;
+	inline int ArtistAlpha = 255;
+	inline int TimeAlpha = 255;
+	inline int ProgressBarAlpha = 255;
+	inline int ProgressBarBackgroundAlpha = 255;
 
 	inline bool ShowOverlay = true;
 	inline bool HideWhenNotPlaying = true;
+	inline bool CompactShowAlbumCover = false;
+	inline bool ShowTimeText = true;
+	inline bool ShowElapsedTime = true;
+	inline bool ShowTotalDuration = true;
+	inline bool OnlyShowTimeLeft = false;
 
 	inline bool CustomOnlineStatus = true;
 
 	inline uint8_t CurrentDisplayMode = DisplayMode::Compact;
 
 	inline float SizeX = 225.f, SizeY = 70.f;
-	inline int Opacity = 255;
+	inline float GlobalScale = 1.0f;
+	inline int Opacity = 255; // Legacy value kept for backward compatibility.
 }
 
 namespace Font

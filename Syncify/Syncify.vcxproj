@@ -22,7 +22,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -119,7 +119,6 @@
     <ClCompile Include="Plugin\src\Syncify.cpp" />
     <ClCompile Include="Plugin\external\bakkes\gui\GuiBase.cpp" />
     <ClCompile Include="Plugin\src\spotify\SpotifyAPI.cpp" />
-    <ClCompile Include="Plugin\src\rendering\impl\SimpleOverlay.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Plugin\src\rendering\impl\CompactOverlay.h" />
@@ -147,7 +146,6 @@
     <ClInclude Include="Plugin\src\logger\Logger.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Plugin\src\spotify\SpotifyAPI.h" />
-    <ClInclude Include="Plugin\src\rendering\impl\SimpleOverlay.h" />
     <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
