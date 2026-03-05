@@ -52,3 +52,4 @@ A [BakkesMod](https://bakkesmod.com/) plugin that displays the current song you 
 
 - [Mediacy](https://github.com/ImBritish) - Creator ❤️
 - [SoulDaMeep](https://github.com/SoulDaMeep) - Current Song as Online Status ❤️
+- [99Anvar99](https://github.com/99Anvar99) - UTF-8 Support ❤️
