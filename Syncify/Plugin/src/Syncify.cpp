@@ -16,13 +16,23 @@ void Syncify::onLoad()
 	this->m_SpotifyApi = std::make_shared<SpotifyAPI>();
 
 	this->LoadData();
+	this->m_SpotifyApi->SetOnTokensChanged([this]()
+		{
+			this->SaveData();
+		});
 
-	this->OverlayInstances.emplace(std::make_pair(DisplayMode::Simple, std::make_unique<SimpleOverlay>()));
-	this->OverlayInstances.emplace(std::make_pair(DisplayMode::Compact, std::make_unique<CompactOverlay>()));
+	this->OverlayInstances.emplace(Simple, std::make_unique<SimpleOverlay>());
+	this->OverlayInstances.emplace(Compact, std::make_unique<CompactOverlay>());
 
-	this->CurrentDisplayMode = this->OverlayInstances.at(Settings::CurrentDisplayMode).get();
+	auto it = this->OverlayInstances.find(Settings::CurrentDisplayMode);
 
-	this->m_SpotifyApi->RefreshAccessToken(nullptr);
+	if (it != this->OverlayInstances.end())
+		this->CurrentDisplayMode = it->second.get();
+	else
+		this->CurrentDisplayMode = this->OverlayInstances.at(Simple).get();
+
+	if (this->m_SpotifyApi->IsAccessTokenExpired())
+		this->m_SpotifyApi->RefreshAccessToken(nullptr);
 
 #ifdef SYNCIFY_STATUSIMPL
 	status = std::make_shared<StatusImpl>(gameWrapper, m_SpotifyApi);
@@ -31,14 +41,15 @@ void Syncify::onLoad()
 
 	auto gui = gameWrapper->GetGUIManager();
 
-	auto [codeLarge, fontLarge] = gui.LoadFont("FontLarge", "../../font.ttf", 18);
-	auto [codeRegular, fontRegular] = gui.LoadFont("FontRegular", "../../font.ttf", 14);
-
-	if (codeLarge == 2)
+	if (auto [codeLarge, fontLarge] = gui.LoadFont("FontLarge", "../../font.ttf", 18, nullptr, Font::Ranges); codeLarge == 2)
 		Font::FontLarge = fontLarge;
+	else
+		Log::Error("Failed to load FontLarge");
 
-	if (codeRegular == 2)
+	if (auto [codeRegular, fontRegular] = gui.LoadFont("FontRegular", "../../font.ttf", 14, nullptr, Font::Ranges); codeRegular == 2)
 		Font::FontRegular = fontRegular;
+	else
+		Log::Error("Failed to load FontRegular");
 
 	gameWrapper->RegisterDrawable([this](CanvasWrapper canvas)
 		{
@@ -49,6 +60,9 @@ void Syncify::onLoad()
 
 void Syncify::onUnload()
 {
+	if (this->m_SpotifyApi)
+		this->m_SpotifyApi->SetOnTokensChanged(nullptr);
+
 	this->SaveData();
 
 	this->m_SpotifyApi->ForceServerClose();
@@ -58,7 +72,7 @@ void Syncify::RenderSettings()
 {
 	if (!this->m_SpotifyApi->IsAuthenticated())
 	{
-		float titleWidth = (ImGui::GetCurrentWindow()->Size.x / 2) - (ImGui::CalcTextSize("Authentication").x / 2);
+		float titleWidth = ImGui::GetCurrentWindow()->Size.x / 2 - ImGui::CalcTextSize("Authentication").x / 2;
 
 		ImGui::SetCursorPosX(titleWidth);
 		ImGui::Text("Authentication");
@@ -77,7 +91,7 @@ void Syncify::RenderSettings()
 		return;
 	}
 
-	float settingsWidth = (ImGui::GetCurrentWindow()->Size.x / 2) - (ImGui::CalcTextSize("Settings").x / 2);
+	float settingsWidth = ImGui::GetCurrentWindow()->Size.x / 2 - ImGui::CalcTextSize("Settings").x / 2;
 
 	ImGui::SetCursorPosX(settingsWidth);
 	ImGui::Text("Settings");
@@ -115,7 +129,7 @@ void Syncify::RenderSettings()
 
 	ImGui::Separator();
 
-	float modeTitleWidth = (ImGui::GetCurrentWindow()->Size.x / 2) - (ImGui::CalcTextSize("Style").x / 2);
+	float modeTitleWidth = ImGui::GetCurrentWindow()->Size.x / 2 - ImGui::CalcTextSize("Style").x / 2;
 
 	ImGui::SetCursorPosX(modeTitleWidth);
 	ImGui::Text("Style");
@@ -126,7 +140,7 @@ void Syncify::RenderSettings()
 	{
 		for (uint8_t modeIndex = 0; modeIndex < this->OverlayInstances.size(); ++modeIndex)
 		{
-			if (modeIndex == DisplayMode::Extended) // Don't display extended since i dosent render anything yet
+			if (modeIndex == Extended) // Don't display extended since i dosent render anything yet
 				continue;
 
 			bool Selected = modeIndex == Settings::CurrentDisplayMode;
@@ -141,7 +155,7 @@ void Syncify::RenderSettings()
 		ImGui::EndCombo();
 	}
 
-	if (Settings::CurrentDisplayMode != DisplayMode::Simple)
+	if (Settings::CurrentDisplayMode != Simple)
 	{
 		ImGui::Separator();
 
@@ -151,6 +165,15 @@ void Syncify::RenderSettings()
 
 		ImGui::ColorEdit3("ProgressBar Color", Settings::DurationBarColor, ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoInputs);
 		ImGui::SliderFloat("ProgressBar Rounding", &Settings::DurationBarRounding, 0.f, 10.f, "%.1f");
+	}
+
+	// Always Keep At the bottom :D
+
+	if (ImGui::Button("Disconnect Spotify"))
+	{
+		this->m_SpotifyApi->Disconnect();
+		this->SaveData();
+		return;
 	}
 }
 
@@ -203,8 +226,6 @@ void Syncify::RenderWindow()
 
 	if (!this->m_SpotifyApi)
 		return;
-
-	bool ShowControls = gameWrapper->IsCursorVisible() == 2;
 
 	if (!Font::FontLarge)
 	{
@@ -262,7 +283,6 @@ void Syncify::RenderCanvas(CanvasWrapper& canvas)
 	if (this->isWindowOpen_ && Settings::HideWhenNotPlaying && this->bNotPlaying()) // Window is open but needs closing
 	{
 		cvarManager->executeCommand("closemenu " + GetMenuName());
-		return;
 	}
 }
 
@@ -270,9 +290,9 @@ void Syncify::SaveData()
 {
 	std::filesystem::path latestSavePath = gameWrapper->GetDataFolder() / "Syncify" / "LatestSave.json";
 
-	if (!std::filesystem::exists(latestSavePath.parent_path()))
+	if (!exists(latestSavePath.parent_path()))
 	{
-		std::filesystem::create_directories(latestSavePath.parent_path());
+		create_directories(latestSavePath.parent_path());
 	}
 
 	nlohmann::json j;
@@ -281,6 +301,7 @@ void Syncify::SaveData()
 	j["ClientSecret"] = *this->m_SpotifyApi->GetClientSecret();
 	j["AccessToken"] = *this->m_SpotifyApi->GetAccessToken();
 	j["RefreshToken"] = *this->m_SpotifyApi->GetRefreshToken();
+	j["TokenExpiry"] = this->m_SpotifyApi->GetTokenExpiryUnix();
 
 	j["Options"]["ShowOverlay"] = Settings::ShowOverlay;
 	j["Options"]["HideWhenNotPlaying"] = Settings::HideWhenNotPlaying;
@@ -321,7 +342,7 @@ void Syncify::LoadData()
 
 	nlohmann::json saveData;
 
-	if (!std::filesystem::exists(latestSavePath))
+	if (!exists(latestSavePath))
 		return;
 
 	std::ifstream inFile(latestSavePath);
@@ -345,6 +366,9 @@ void Syncify::LoadData()
 
 	if (data.contains("RefreshToken"))
 		this->m_SpotifyApi->SetRefreshToken(data["RefreshToken"]);
+
+	if (data.contains("TokenExpiry"))
+		this->m_SpotifyApi->SetTokenExpiryUnix(data["TokenExpiry"].get<long long>());
 
 	if (data.contains("Options"))
 	{

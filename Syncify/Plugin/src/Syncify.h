@@ -2,12 +2,8 @@
 
 #include <Plugin/external/bakkes/gui/GuiBase.h>
 #include <bakkesmod/plugin/bakkesmodplugin.h>
-#include <bakkesmod/plugin/pluginwindow.h>
-#include <bakkesmod/plugin/PluginSettingsWindow.h>
 
 #include "version.h"
-
-#include "rendering/settings/Globals.h"
 
 #include "spotify/SpotifyAPI.h"
 
@@ -21,7 +17,7 @@
 
 constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH);
 
-class Syncify : public BakkesMod::Plugin::BakkesModPlugin, public SettingsWindowBase, public PluginWindowBase
+class Syncify final : public BakkesMod::Plugin::BakkesModPlugin, public SettingsWindowBase, public PluginWindowBase
 {
 #ifdef SYNCIFY_STATUSIMPL
 public:
